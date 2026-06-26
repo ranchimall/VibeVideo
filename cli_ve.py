@@ -5,6 +5,7 @@ import re
 import subprocess
 import os
 import imageio_ffmpeg
+from audacity_engine import AudacityEngine
 
 # path to ffmpeg binary
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
