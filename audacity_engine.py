@@ -9,7 +9,10 @@ class AudacityEngine:
     
     def connect(self):
         print("Connecting to Audacity...")
+        print("Connecting to Audacity...")
 
+        self.to_pipe = open(self.to_pipe_name, "w")
+        self.from_pipe = open(self.from_pipe_name, "r")
         self.to_pipe = open(self.to_pipe_name, "w")
         self.from_pipe = open(self.from_pipe_name, "r")
 
