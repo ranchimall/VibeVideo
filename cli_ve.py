@@ -4,7 +4,12 @@ import numpy as np
 import re
 import subprocess
 import os
+import sys
 import imageio_ffmpeg
+from audacity_engine import AudacityEngine
+
+print("Python:", sys.executable)
+print("CWD:", os.getcwd())
 
 # path to ffmpeg binary
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
@@ -123,6 +128,15 @@ training_phrases = [
     ("audio_visual", "generate waveform video for song.mp3"),
     ("audio_visual", "generate spectrogram image of audio"),
     ("audio_visual", "create audio visualizer waveform"),
+
+    ("audio_normalize", "normalize audio"),
+    ("audio_normalize", "normalize audio.mp3"),
+    ("audio_normalize", "normalize voice recording"),
+    ("audio_normalize", "normalize narration"),
+    ("audio_normalize", "normalize loudness"),
+    ("audio_normalize", "make audio normal volume"),
+    ("audio_normalize", "make loudness consistent"),
+    ("audio_normalize", "normalize sound"),
 ]
 
 # load model and build faiss index
@@ -653,7 +667,7 @@ def audio_replace(params):
 def audio_visual(params):
     input_files = params.get("input_files", [])
     output_file = params.get("output_file")
-    visual_type = params.get("visual_type", "waveform")
+    visual_type = params.get("visual_type", "waveform")  
 
     if not input_files:
         print("Error: No input audio file specified.")
@@ -688,6 +702,45 @@ def execute_tool(intent, params):
 
     tool(params)
 
+##--Audacity Integration--
+def audio_normalize(params):
+
+    input_files = params.get("input_files", [])
+    output_file = params.get("output_file")
+
+    if not input_files:
+        print("Error: No input audio file specified.")
+        return
+
+    a1 = input_files[0]
+
+    if not os.path.exists(a1):
+        print(f"Error: Input file '{a1}' does not exist.")
+        return
+
+    if not output_file:
+        base, ext = os.path.splitext(a1)
+        output_file = f"{base}_normalized{ext}"    
+
+    print(f"Input : {a1}")
+    print(f"Output: {output_file}")    
+
+    audacity = AudacityEngine()
+    audacity.connect()
+
+    print("Audacity connection successful.")
+    print(audacity.import_audio(a1))
+
+    print(audacity.select_all())
+    print(audacity.normalize())
+    result = audacity.export(output_file)
+
+    if "OK" in result:
+        print(f"\n✓ Audio normalized successfully!")
+        print(f"✓ Output: {output_file}")
+    else:
+        print(result)
+
 TOOLS = {
     "screenshot": take_screenshot,
     "screen_record": record_screen,
@@ -703,6 +756,7 @@ TOOLS = {
     "audio_extract": audio_extract,
     "audio_replace": audio_replace,
     "audio_visual": audio_visual,
+    "audio_normalize": audio_normalize,
 }
 
 
@@ -763,4 +817,4 @@ if __name__ == "__main__":
 
         print("Parameters:", params)
 
-        execute_tool(intent, params)
+        execute_tool("audio_normalize", params)
