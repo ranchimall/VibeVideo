@@ -11,7 +11,7 @@ ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
 def scan_media_files():
     """Scan current directory for media files and build working name mappings."""
-    extensions = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".mp3", ".wav", ".png", ".jpg"}
+    extensions = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".mp3", ".wav", ".png", ".jpg", ".jpeg"}
     files = [f for f in os.listdir('.') if os.path.isfile(f) and os.path.splitext(f.lower())[1] in extensions]
     files.sort(key=lambda x: x.lower())
     
@@ -33,14 +33,14 @@ def preprocess_query(query, mapping):
         return mapping.get(word, match.group(0))
         
     # Match pattern: f\d+ or file\d+ but not followed by dot and extension
-    query = re.sub(r'\b(file\d+|f\d+)\b(?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg))', replace_func, query, flags=re.I)
+    query = re.sub(r'\b(file\d+|f\d+)\b(?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))', replace_func, query, flags=re.I)
     
     # Match pattern: \[\d+\] but not followed by dot and extension
     def replace_bracket(match):
         bracketed = match.group(0)
         return mapping.get(bracketed, match.group(0))
         
-    query = re.sub(r'\[\d+\](?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg))', replace_bracket, query)
+    query = re.sub(r'\[\d+\](?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))', replace_bracket, query)
     
     return query
 
@@ -123,6 +123,11 @@ training_phrases = [
     ("audio_visual", "generate waveform video for song.mp3"),
     ("audio_visual", "generate spectrogram image of audio"),
     ("audio_visual", "create audio visualizer waveform"),
+
+    ("face_swap_video", "swap face in video with photo"),
+    ("face_swap_video", "replace face in video.mp4 with face.jpg"),
+    ("face_swap_video", "put my face in video"),
+    ("face_swap_video", "face replace video with photo"),
 ]
 
 # load model and build faiss index
@@ -170,13 +175,13 @@ def parse_parameters(text):
         params["fps"] = int(m.group(1))
 
     # extract all potential files
-    all_files = re.findall(r'\b([A-Za-z0-9_-]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg))\b', text, re.I)
+    all_files = re.findall(r'\b([A-Za-z0-9_-]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))\b', text, re.I)
 
     # check if merging
     is_merge = any(w in text.lower() for w in ["merge", "combine", "join", "concatenate", "concat"])
 
     # find output file (as/into/output)
-    m_out = re.search(r'\b(?:as|into|output)\s+([A-Za-z0-9_-]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg))\b', text, re.I)
+    m_out = re.search(r'\b(?:as|into|output)\s+([A-Za-z0-9_-]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))\b', text, re.I)
     if m_out:
         params["output_file"] = m_out.group(1)
         params["input_files"] = [f for f in all_files if f.lower() != params["output_file"].lower()]
@@ -453,7 +458,20 @@ def merge_videos(params):
         if os.path.exists(concat_list_file):
             os.remove(concat_list_file)
 
-
+def resolve_shortcut(path):
+    if not path:
+        return path
+    path = path.strip()
+    path_clean = re.sub(r'[\[\]\s]', '', path).lower()
+    m = re.match(r'^(?:file|f)?(\d+)$', path_clean)
+    if m:
+        idx = int(m.group(1))
+        extensions = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".mp3", ".wav", ".png", ".jpg", ".jpeg"}
+        files = [f for f in os.listdir('.') if os.path.isfile(f) and os.path.splitext(f.lower())[1] in extensions]
+        files.sort(key=lambda x: x.lower())
+        if 1 <= idx <= len(files):
+            return files[idx - 1]
+    return path
 
 def audio_trim(params):
     input_files = params.get("input_files", [])
@@ -678,6 +696,115 @@ def audio_visual(params):
     subprocess.run(cmd, shell=True)
     print(f"Visual representation saved as '{output_file}'")
 
+def face_swap_video(params):
+    import cv2
+    import numpy as np
+    import insightface
+    from insightface.app import FaceAnalysis
+    import urllib.request
+
+    input_files = params.get("input_files", [])
+    output_file = params.get("output_file")
+    
+    # Workaround for parse_parameters incorrectly assigning the second input as output_file
+    if len(input_files) == 1 and output_file:
+        input_files.append(output_file)
+        output_file = None
+        
+    if len(input_files) < 2:
+        print("Error: face_swap_video requires 1 video file and 1 image file.")
+        return
+
+    # Try to distinguish video and image
+    video_path, photo_path = None, None
+    for f in input_files:
+        ext = os.path.splitext(f.lower())[1]
+        if ext in [".mp4", ".mkv", ".avi", ".mov", ".webm"]:
+            video_path = resolve_shortcut(f)
+        elif ext in [".jpg", ".jpeg", ".png"]:
+            photo_path = resolve_shortcut(f)
+    
+    # Fallback if both have same extension (unlikely for video/photo but possible)
+    if not video_path or not photo_path:
+        video_path = resolve_shortcut(input_files[0])
+        photo_path = resolve_shortcut(input_files[1])
+        
+    if not output_file:
+        base, ext = os.path.splitext(video_path)
+        output_file = f"{base}_faceswap{ext}"
+        
+    if not os.path.exists(video_path):
+        print(f"Error: Video file '{video_path}' does not exist.")
+        return
+    if not os.path.exists(photo_path):
+        print(f"Error: Photo file '{photo_path}' does not exist.")
+        return
+        
+    model_path = "inswapper_128.onnx"
+    if not os.path.exists(model_path):
+        print("Downloading inswapper_128.onnx model (~500MB). This might take a few minutes...")
+        try:
+            url = "https://huggingface.co/ezioruan/inswapper_128.onnx/resolve/main/inswapper_128.onnx"
+            urllib.request.urlretrieve(url, model_path)
+            print("Model downloaded.")
+        except Exception as e:
+            print(f"Error downloading model: {e}")
+            return
+            
+    print("Loading InsightFace models...")
+    app = FaceAnalysis(name='buffalo_l')
+    app.prepare(ctx_id=0, det_size=(640, 640))
+    swapper = insightface.model_zoo.get_model(model_path)
+    
+    source_img = cv2.imread(photo_path)
+    source_faces = app.get(source_img)
+    if not source_faces:
+        print("Error: Could not detect any face in the source photo.")
+        return
+    source_face = source_faces[0]
+    
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    
+    temp_output = "temp_swap.mp4"
+    out = cv2.VideoWriter(temp_output, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+    
+    print(f"Processing video frames... (Total frames: {total_frames})")
+    frame_count = 0
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+            
+        faces_in_frame = app.get(frame)
+        if faces_in_frame:
+            # Swap the largest face found or first face
+            target_face = faces_in_frame[0]
+            try:
+                frame = swapper.get(frame, target_face, source_face, paste_back=True)
+            except Exception as e:
+                pass # ignore swap error on a specific frame
+                
+        out.write(frame)
+        frame_count += 1
+        if frame_count % 30 == 0:
+            print(f"Processed {frame_count}/{total_frames} frames...")
+            
+    cap.release()
+    out.release()
+    
+    print("Post-processing video with FFmpeg to preserve audio and ensure compatibility...")
+    cmd = f'"{ffmpeg_path}" -y -i "{temp_output}" -i "{video_path}" -c:v libx264 -pix_fmt yuv420p -map 0:v -map 1:a? -c:a aac -shortest "{output_file}"'
+    subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
+    if os.path.exists(temp_output):
+        os.remove(temp_output)
+        
+    print(f"Face swap complete. Saved video as '{output_file}'")
+
 def execute_tool(intent, params):
 
     tool = TOOLS.get(intent)
@@ -703,6 +830,7 @@ TOOLS = {
     "audio_extract": audio_extract,
     "audio_replace": audio_replace,
     "audio_visual": audio_visual,
+    "face_swap_video": face_swap_video,
 }
 
 

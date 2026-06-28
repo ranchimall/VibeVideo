@@ -38,6 +38,12 @@ pip install sentence-transformers faiss-cpu numpy imageio-ffmpeg
 > [!NOTE]
 > The editor uses the `imageio-ffmpeg` package to automatically fetch and use the correct FFmpeg executable, so you do not need to manually install or configure FFmpeg in your system path for basic tasks!
 
+#### Feature-Specific Dependencies (Optional)
+To use the **Video Face Swapping** feature, you will need to install InsightFace and its dependencies:
+```bash
+pip install insightface onnxruntime opencv-python
+```
+
 
 ---
 
@@ -74,6 +80,7 @@ The table below summarizes the natural language commands supported by the FAISS 
 | **`screen_record_audio`**| `record screen with microphone as webinar.mp4` | `fps`, `filename` | Screen recording with system audio/mic (default: `recording_audio.mp4`) | Core FFmpeg |
 | **`video_clip`** | `clip f1 from 00:05 to 00:15 into cut.mp4`, `trim file2 for 10 seconds` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed video clip (default: `<input>_clipped.<ext>`) | Core FFmpeg |
 | **`video_merge`** | `merge f1 and f2 using slideleft transition as final.mp4`, `combine file1.mp4 and file2.mp4` | `input_files`, `output_file`, `transition` | Merged video. If 2 videos and transition defined, applies xfade. (default: `merged.mp4`) | Core FFmpeg |
+| **`face_swap_video`** | `swap face in video.mp4 with face.jpg`, `replace face in f1 with f2` | `input_files`, `output_file` | Video with the face swapped seamlessly (default: `<input>_faceswap.<ext>`) | InsightFace, ONNXRuntime, OpenCV |
 | **`audio_trim`** | `trim audio f2 from 10 to 30 seconds`, `cut f2 from 00:00:10 to 00:00:30` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed audio file (default: `<input>_trimmed.<ext>`) | Core FFmpeg |
 | **`audio_volume`** | `double volume of f2.mp3`, `make audio f2.wav quieter by volume 0.5` | `input_files`, `output_file`, `volume_level` | Adjusted volume audio/video file (default: `<input>_volume.<ext>`) | Core FFmpeg |
 | **`audio_fade`** | `apply fade out of 3 seconds to f2.mp3`, `fade in f2.wav starting from 0 for 5 seconds` | `input_files`, `output_file`, `fade_type`, `fade_duration`, `start_time` | Audio file with fade-in/fade-out applied (default: `<input>_fade_<in/out>.<ext>`) | Core FFmpeg |
@@ -90,7 +97,7 @@ The table below summarizes the natural language commands supported by the FAISS 
 
 The editor extracts details from your commands using a regular expression parser. Below are the patterns you can use to specify settings:
 
-* **Filenames**: Matches any string ending in standard extensions (`.mp4`, `.mkv`, `.avi`, `.mov`, `.webm`, `.mp3`, `.wav`, `.png`, `.jpg`).
+* **Filenames**: Matches any string ending in standard extensions (`.mp4`, `.mkv`, `.avi`, `.mov`, `.webm`, `.mp3`, `.wav`, `.png`, `.jpg`, `.jpeg`).
   * *Example:* `as final_edit.mp4`, `into backing_track.mp3`
 * **Frames Per Second (FPS)**: Specified as a number followed by `fps`.
   * *Example:* `60 fps`, `30fps` (Default is `30`)
