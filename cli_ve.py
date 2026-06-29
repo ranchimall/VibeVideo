@@ -884,9 +884,7 @@ if __name__ == "__main__":
         print(f"\nIntent: {intent}")
         print(f"Distance: {distance:.2f}")
 
-        if distance > 1.2:
-            print("Command not understood.")
-            continue
+
 
         params = parse_parameters(processed_query)
 
