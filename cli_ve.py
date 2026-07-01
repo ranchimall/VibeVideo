@@ -7,6 +7,9 @@ import os
 import sys
 import imageio_ffmpeg
 from audacity_engine import AudacityEngine
+from mcp.instruction import find_mcp_instruction
+from mcp.capability_resolver import resolve_tool
+from engines.ffmpeg_engine import execute_ffmpeg
 
 print("Python:", sys.executable)
 print("CWD:", os.getcwd())
@@ -51,7 +54,7 @@ def preprocess_query(query, mapping):
 
 # training data for intent classification
 
-
+"""commenting out this temporarily
 training_phrases = [
     ("screen_record", "record my screen"),
     ("screen_record", "capture my desktop"),
@@ -138,6 +141,8 @@ training_phrases = [
     ("audio_normalize", "make loudness consistent"),
     ("audio_normalize", "normalize sound"),
 ]
+"""
+
 
 # load model and build faiss index
 
@@ -145,14 +150,38 @@ print("Loading embedding model...")
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-phrases = [x[1] for x in training_phrases]
-intents = [x[0] for x in training_phrases]
+from pathlib import Path
 
-embeddings = model.encode(phrases)
+documents_folder = "documents"
+
+chunks = []
+
+for file in Path(documents_folder).glob("*.txt"):
+
+    with open(file, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    sections = text.split("$$$|||")
+
+    for section in sections:
+
+        section = section.strip()
+
+        if section:
+
+            chunks.append({
+                "filename": file.name,
+                "text": section
+            })
+
+texts = [chunk["text"] for chunk in chunks]
+
+embeddings = model.encode(texts)
 
 dimension = embeddings.shape[1]
 
 index = faiss.IndexFlatL2(dimension)
+
 index.add(np.array(embeddings).astype("float32"))
 
 print("FAISS index ready.\n")
@@ -167,6 +196,8 @@ def parse_parameters(text):
         "filename": None,
         "input_files": [],
         "output_file": None,
+        "width": None,
+        "height": None,
         "start_time": None,
         "end_time": None,
         "transition": None,
@@ -174,7 +205,7 @@ def parse_parameters(text):
         "volume_level": 1.0,
         "visual_type": "waveform",
         "fade_type": "in",
-        "fade_duration": 3.0
+        "fade_duration": 3.0,
     }
 
     # fps
@@ -211,6 +242,16 @@ def parse_parameters(text):
     elif all_files:
         params["filename"] = all_files[-1]
 
+    # resolution
+    m = re.search(r'(\d+)\s*[xX×*]\s*(\d+)', text)
+
+    if m:
+        params["width"] = m.group(1)
+        params["height"] = m.group(2)
+
+        # Remove the matched resolution so later regexes don't see it
+        text = text.replace(m.group(0), "")
+    
     # start time
     m_start = re.search(r'\b(?:from|start|starting|ss|at)\s+(\d{1,2}:\d{2}:\d{2}(?:\.\d+)?|\d{1,2}:\d{2}(?:\.\d+)?|\d+(?:\.\d+)?)(?!\s*fps)\b', text, re.I)
     if m_start:
@@ -762,27 +803,18 @@ TOOLS = {
 
 
 
-def detect_intent(query):
+def search_documents(query):
 
     query_embedding = model.encode([query])
 
     distances, indices = index.search(
         np.array(query_embedding).astype("float32"),
-        3
+        1
     )
 
-    print("\nTop matches:")
-    for rank, idx in enumerate(indices[0]):
-        print(
-            f"{rank+1}. {intents[idx]} | {phrases[idx]} | distance={distances[0][rank]:.2f}"
-        )
+    best_chunk = chunks[indices[0][0]]
 
-    best_idx = indices[0][0]
-    best_distance = distances[0][0]
-
-    intent = intents[best_idx]
-
-    return intent, best_distance
+    return best_chunk, distances[0][0]
 
 
 # --- CLI Prompt Loop ---
@@ -804,17 +836,33 @@ if __name__ == "__main__":
         if processed_query != query:
             print(f"Translated: {processed_query}")
 
-        intent, distance = detect_intent(processed_query)
+        chunk, distance = search_documents(processed_query)
+        lines = chunk["text"].split("\n")
+        
+        capability = lines[0]
 
-        print(f"\nIntent: {intent}")
-        print(f"Distance: {distance:.2f}")
-
-        if distance > 1.2:
-            print("Command not understood.")
-            continue
+        print("\nCapability:")
+        print(capability)
 
         params = parse_parameters(processed_query)
+        print("\nParsed Parameters:")
+        print(params)
 
-        print("Parameters:", params)
+        instruction = find_mcp_instruction(
+            capability,
+            params
+        )
+        print("\nMCP Instruction:")
+        print(instruction)
 
-        execute_tool("audio_normalize", params)
+        tool = resolve_tool(instruction)
+
+        print("\nSelected Tool:")
+        print(tool)
+
+        if tool["tool"] == "ffmpeg":
+            execute_ffmpeg(
+                tool["implementation"],
+                instruction
+            )
+
