@@ -1,0 +1,23 @@
+yt-dlp>=2024.1.0
+
+# ---------------------------------------------------------------
+# ffmpeg is NOT a Python package, so pip cannot install it via this
+# file. yt-dlp needs it to merge separately-downloaded video and
+# audio streams into one file. Install it manually, once:
+#
+#   Windows:
+#     1. Download a build from https://www.gyan.dev/ffmpeg/builds/
+#        (get the "release essentials" or "release full" zip)
+#     2. Extract it, e.g. to C:\ffmpeg
+#     3. Add C:\ffmpeg\bin to your system PATH (System Properties ->
+#        Environment Variables -> Path -> New)
+#     4. Open a NEW terminal and verify with: ffmpeg -version
+#
+#     (Alternative if you have Chocolatey: choco install ffmpeg)
+#
+#   macOS:
+#     brew install ffmpeg
+#
+#   Linux (Debian/Ubuntu):
+#     sudo apt install ffmpeg
+# ---------------------------------------------------------------
