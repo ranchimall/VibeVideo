@@ -24,11 +24,19 @@ CAPABILITY_TOOL_MAP = {
 
     },
 
-        "resize_video": {
+    "resize_video": {
 
         "tool": "ffmpeg",
 
         "implementation": "resize_video"
+
+    },
+
+    "download_youtube": {
+
+        "tool": "yt_dlp",
+
+        "implementation": "download_youtube"
 
     }
 

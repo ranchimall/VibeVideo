@@ -10,6 +10,7 @@ from audacity_engine import AudacityEngine
 from mcp.instruction import find_mcp_instruction
 from mcp.capability_resolver import resolve_tool
 from engines.ffmpeg_engine import execute_ffmpeg
+from mcp.executor import execute as execute_tool_instruction
 
 print("Python:", sys.executable)
 print("CWD:", os.getcwd())
@@ -206,6 +207,9 @@ def parse_parameters(text):
         "visual_type": "waveform",
         "fade_type": "in",
         "fade_duration": 3.0,
+        "url": None,
+        "quality": None,
+        "delete_full": False,
     }
 
     # fps
@@ -213,6 +217,28 @@ def parse_parameters(text):
     m = re.search(r'(\d+)\s*fps', text, re.I)
     if m:
         params["fps"] = int(m.group(1))
+
+    # youtube url
+    m_url = re.search(
+        r'(https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)[A-Za-z0-9_-]+(?:[&?][^\s]*)?)',
+        text
+    )
+    if m_url:
+        params["url"] = m_url.group(1)
+
+    # video quality, e.g. "720p" or "quality 1080" -- only meaningful
+    # alongside a youtube url, so scope it there to avoid colliding
+    # with duration/resolution parsing elsewhere
+    if params["url"]:
+        m_quality = re.search(
+            r'\b(?:quality\s*(?:of|to)?\s*)?(144|240|360|480|720|1080|1440|2160)\s*p?\b',
+            text, re.I
+        )
+        if m_quality:
+            params["quality"] = int(m_quality.group(1))
+
+        if re.search(r'\bdelete\s+(?:the\s+)?full\b', text, re.I):
+            params["delete_full"] = True
 
     # extract all potential files
     all_files = re.findall(r'\b([A-Za-z0-9_-]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg))\b', text, re.I)
@@ -860,9 +886,8 @@ if __name__ == "__main__":
         print("\nSelected Tool:")
         print(tool)
 
-        if tool["tool"] == "ffmpeg":
-            execute_ffmpeg(
-                tool["implementation"],
-                instruction
-            )
+        try:
+            execute_tool_instruction(tool, instruction)
+        except Exception as e:
+            print(f"\nError running '{capability}': {e}")
 

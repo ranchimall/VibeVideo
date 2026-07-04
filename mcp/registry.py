@@ -34,4 +34,23 @@ MCP_REGISTRY = {
             "file_not_found"
         ]
     },
-}    
+
+    "download_youtube": {
+        "action": "download_youtube",
+        "input": [
+            "url",
+            "quality",
+            "start_time",
+            "end_time",
+            "delete_full"
+        ],
+        "output": [
+            "output_file"
+        ],
+        "errors": [
+            "invalid_url",
+            "download_failed",
+            "trim_failed"
+        ]
+    },
+}
