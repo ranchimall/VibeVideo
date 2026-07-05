@@ -21,8 +21,9 @@ import os
 import subprocess
 import sys
 
+import re
 import yt_dlp
-
+import imageio_ffmpeg
 
 def parse_timestamp(value):
     """Accepts "SS", "MM:SS", or "HH:MM:SS" and returns whole seconds."""
@@ -58,12 +59,22 @@ def download_video(url, output_dir=".", quality=None):
         "merge_output_format": "mp4",
         "noplaylist": True,
         "progress_hooks": [_progress_hook],
+        "ffmpeg_location": imageio_ffmpeg.get_ffmpeg_exe(),
     }
 
+    # Download the video and get the raw filename
     with yt_dlp.YoutubeDL(options) as ydl:
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
-        return filename
+    # Sanitize filename: replace spaces with underscores and remove any problematic characters
+    base, ext = os.path.splitext(os.path.basename(filename))
+    safe_base = re.sub(r"[\s]+", "_", base)
+    safe_base = re.sub(r"[\\/:*?\"<>|]", "", safe_base)  # strip illegal FS chars
+    safe_name = f"{safe_base}{ext}"
+    safe_path = os.path.join(os.path.dirname(filename), safe_name)
+    if safe_path != filename:
+        os.rename(filename, safe_path)
+    return safe_path
 
 
 def _progress_hook(d):
@@ -80,7 +91,8 @@ def trim_clip(input_path, output_path, start=None, end=None):
     stream copy (no re-encoding). Since it's a stream copy, the start may
     snap to the nearest keyframe at or before the requested time
     (typically off by a second or two)."""
-    cmd = ["ffmpeg", "-y"]
+    ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+    cmd = [ffmpeg_path, "-y"]
     if start is not None:
         cmd += ["-ss", str(start)]
     cmd += ["-i", input_path]

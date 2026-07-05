@@ -20,4 +20,96 @@ Resize video to another resolution
 Change video resolution
 Scale a video
 Resize this video
+$$$|||$$$|||
+screen_record
+record my screen
+capture my desktop
+start screen recording
+record monitor
+
 $$$|||
+screen_record_audio
+record screen with audio
+record screen with microphone
+capture desktop and sound
+record display with sound
+
+$$$|||
+video_clip
+clip a video
+trim my video file
+cut video from 10 to 20 seconds
+extract clip from input.mp4
+trim input.mp4 to output.mp4
+crop video duration
+slice video starting from 5 seconds for 15 seconds
+cut video from start to 30 seconds
+"clip f11 from 00:01:20 to 00:01:45",
+"clip my video file",
+"clip video.mp4",
+"clip f12 from 10 to 20 seconds",
+"trim video from 00:01:20 to 00:01:45",
+"cut video starting at 00:01:20 for 25 seconds",
+
+$$$|||
+video_merge
+merge videos together
+combine two videos
+join video1.mp4 and video2.mp4
+concatenate videos into output.mp4
+merge vid1.mp4 and vid2.mp4 with fade transition
+combine vid1.mp4 and vid2.mp4 into final.mp4
+join videos using slideleft
+
+$$$|||
+audio_trim
+trim audio from 10 to 30 seconds
+cut audio song.mp3 from 00:00:10 to 00:00:30
+clip audio file from start to 10 seconds
+
+$$$|||
+audio_volume
+increase audio volume
+decrease volume of song.mp3 by 0.5
+change audio level to 2.0
+adjust volume to 0.8
+
+$$$|||
+audio_fade
+fade in audio
+apply fade out to song.mp3
+add 5 second fade in to track
+fade out at 60 seconds for 3 seconds
+
+$$$|||
+audio_mix
+mix audio files
+combine track1.mp3 and track2.mp3
+merge audio from multiple files
+
+$$$|||
+audio_speed
+change audio speed
+make song.mp3 play faster
+slow down audio track
+speed up voice recording to 1.5x
+
+$$$|||
+audio_reverse
+reverse audio
+play song.mp3 backwards
+make audio track play in reverse
+
+$$$|||
+audio_replace
+replace audio in video
+swap audio in file1.mp4 with background.mp3
+change video soundtrack
+combine video and audio track
+
+$$$|||
+audio_visual
+generate waveform video for song.mp3
+generate spectrogram image of audio
+create audio visualizer waveform
+

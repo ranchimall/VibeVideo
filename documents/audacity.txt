@@ -1,7 +1,10 @@
-Audacity command to normalize audio | audacity.normalize()
-
-Audacity command to import audio | audacity.import_audio(a1)
-
-Audacity command to select the complete audio track | audacity.select_all()
-
-Audacity command to export the new normalized output | audacity.export(output_file)
+$$$|||
+normalize_audio
+normalize audio
+normalize audio.mp3
+normalize voice recording
+normalize narration
+normalize loudness
+make audio normal volume
+make loudness consistent
+normalize sound

@@ -3,6 +3,15 @@
 An intelligent, natural language-driven command-line interface for video and audio editing. 
 
 
+## Directory Structure
+
+- **`documents/`**: Contains text files describing tool capabilities, which are chunked and embedded by FAISS to understand natural language intent.
+- **`engines/`**: Houses the backend integration scripts (`ffmpeg_engine.py`, `audacity_engine.py`, `insightface_engine.py`, `ytdl.py`) that actually execute commands on media files.
+- **`mcp/`**: Contains the Model Context Protocol (MCP) logic (`capability_resolver.py`, `executor.py`, `registry.py`) that extracts parameters, queries the FAISS index, and dispatches instructions to engines.
+- **`models/`**: Stores downloaded machine learning weights (e.g., InsightFace) and the serialized FAISS vector index.
+- **`sample_media/`**: The designated working directory to place your videos, audio, and images for editing.
+- **`tests/`**: Contains automated scripts to verify the CLI's capabilities.
+
 ---
 
 ## Getting Started
@@ -31,33 +40,30 @@ Once activated, your terminal prompt will display `(venv)`.
 ### 3. Dependency Installation
 Ensure your virtual environment is active, then install the required Python packages:
 
-#### Core Dependencies (Required)
+You can install all required and optional dependencies in one go using the `requirements.txt` file:
+
 ```bash
-pip install sentence-transformers faiss-cpu numpy imageio-ffmpeg
+pip install -r requirements.txt
 ```
+
 > [!NOTE]
 > The editor uses the `imageio-ffmpeg` package to automatically fetch and use the correct FFmpeg executable, so you do not need to manually install or configure FFmpeg in your system path for basic tasks!
 
-#### Feature-Specific Dependencies (Optional)
-To use the **Video Face Swapping** feature, you will need to install InsightFace and its dependencies:
-```bash
-pip install insightface onnxruntime opencv-python
-```
+*(This also installs dependencies for the **Video Face Swapping** feature like `insightface` and `onnxruntime`, and `yt-dlp` for downloading YouTube videos.)*
 
-To use the **YouTube Download** feature, you will need to install `yt-dlp`:
-```bash
-pip install yt-dlp
-```
+### 4. Optional Third-Party Software
+- **Audacity**: Required **ONLY** if you plan to use the `normalize audio` command. You must have the Audacity desktop application installed and actively running on your PC with the `mod-script-pipe` module enabled in its settings (Edit -> Preferences -> Modules).
+
 
 
 ---
 
 ## How to Use
 
-1. Place the media files you want to edit in the same directory as [cli_ve.py]
+1. Place the media files you want to edit in the same directory as `vibevideo.py`.
 2. Start the interactive console:
    ```bash
-   python cli_ve.py
+   python vibevideo.py
    ```
 3. Upon startup, the editor will scan the directory and list all available media files, assigning them numbered shortcuts:
    ```text
@@ -81,9 +87,10 @@ The table below summarizes the natural language commands supported by the FAISS 
 | Intent (FAISS Category) | Sample Prompts / Commands | Parsed Parameters | Output File / Result | Dependencies |
 | :--- | :--- | :--- | :--- | :--- |
 | **`screenshot`** | `take a screenshot`, `capture screenshot as capture.png` | `filename` | Screenshot of the desktop (default: `screenshot.png`) | Core FFmpeg |
-| **`screen_record`** | `record screen at 60 fps for 10 seconds as desktop.mp4` | `fps`, `filename` | Desktop screen recording (default: `recording.mp4`) | Core FFmpeg |
-| **`screen_record_audio`**| `record screen with microphone as webinar.mp4` | `fps`, `filename` | Screen recording with system audio/mic (default: `recording_audio.mp4`) | Core FFmpeg |
+| **`screen_record`** | `record screen at 60 fps for 10 seconds as desktop.mp4` | `fps`, `duration`, `filename` | Desktop screen recording (default: `recording.mp4`) | Core FFmpeg |
+| **`screen_record_audio`**| `record screen with microphone as webinar.mp4` | `fps`, `duration`, `filename` | Screen recording with system audio/mic (default: `recording_audio.mp4`) | Core FFmpeg |
 | **`video_clip`** | `clip f1 from 00:05 to 00:15 into cut.mp4`, `trim file2 for 10 seconds` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed video clip (default: `<input>_clipped.<ext>`) | Core FFmpeg |
+| **`resize_video`** | `resize video to 1920x1080 as large.mp4`, `scale video to 640x480` | `input_files`, `output_file`, `width`, `height` | Video resized to new dimensions (default: `<input>_resized.<ext>`) | Core FFmpeg |
 | **`video_merge`** | `merge f1 and f2 using slideleft transition as final.mp4`, `combine file1.mp4 and file2.mp4` | `input_files`, `output_file`, `transition` | Merged video. If 2 videos and transition defined, applies xfade. (default: `merged.mp4`) | Core FFmpeg |
 | **`face_swap_video`** | `swap face in video.mp4 with face.jpg`, `replace face in f1 with f2` | `input_files`, `output_file` | Video with the face swapped seamlessly (default: `<input>_faceswap.<ext>`) | InsightFace, ONNXRuntime, OpenCV |
 | **`audio_trim`** | `trim audio f2 from 10 to 30 seconds`, `cut f2 from 00:00:10 to 00:00:30` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed audio file (default: `<input>_trimmed.<ext>`) | Core FFmpeg |
@@ -95,7 +102,7 @@ The table below summarizes the natural language commands supported by the FAISS 
 | **`audio_extract`** | `extract audio from f1.mp4 to track.mp3`, `rip audio track from file1.mov` | `input_files`, `output_file` | Standalone audio track extracted from video (default: `<input>_extracted.mp3`) | Core FFmpeg |
 | **`audio_replace`** | `replace audio in file1.mp4 with background.mp3`, `add backing music f2 to f1` | `input_files`, `output_file` | Video output combined with new audio input (default: `replaced_output.mp4`) | Core FFmpeg |
 | **`audio_visual`** | `generate waveform video for f2.mp3`, `generate spectrogram image of f2` | `input_files`, `output_file`, `visual_type` | Waveform video (`.mp4`) or Spectrogram image (`.png`) | Core FFmpeg |
-| **`audio_normalize`**| `normalize audio f2.mp3`, `normalize loudness of f2` | `input_files`, `output_file` | Audio file with normalized volume (default: `<input>_normalized.<ext>`) | Audacity |
+| **`audio_normalize`**| `normalize audio f2.mp3`, `normalize loudness of f2` | `input_files`, `output_file` | Audio file with normalized volume (default: `<input>_normalized.<ext>`) | Audacity (App must be running) |
 | **`download_youtube`**| `download a youtube video`, `download youtube link` | `url`, `quality`, `start_time`, `end_time` | Downloaded YouTube video clip (default: `<video_title>.mp4`) | yt-dlp |
 
 ---

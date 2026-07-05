@@ -7,11 +7,15 @@ would otherwise pile up wherever resolve_tool() is called.
 
 from engines.ffmpeg_engine import execute_ffmpeg
 from engines.youtube_engine import execute_youtube
+from engines.audacity_engine import execute_audacity
+from engines.insightface_engine import execute_insightface
 
 
 ENGINE_DISPATCH = {
     "ffmpeg": execute_ffmpeg,
     "yt_dlp": execute_youtube,
+    "audacity": execute_audacity,
+    "insightface": execute_insightface,
 }
 
 

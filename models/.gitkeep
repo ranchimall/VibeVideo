@@ -1,0 +1,1 @@
+This directory stores AI model weights and index files. Large files (.onnx, .faiss) are ignored by git.

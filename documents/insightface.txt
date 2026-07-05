@@ -1,0 +1,7 @@
+$$$|||
+face_swap_video
+swap face in video with photo
+replace face in video.mp4 with face.jpg
+put my face in video
+face replace video with photo
+swap face
