@@ -1,0 +1,23 @@
+$$$|||
+extract_audio
+Extract audio from a video
+Take audio from video
+Convert video to audio
+Save audio track from movie
+Extract audio
+
+$$$|||
+take_screenshot
+Take screenshot from a video
+Capture one frame
+Extract one frame
+Save one frame as image
+
+$$$|||
+resize_video
+Resize a video
+Resize video to another resolution
+Change video resolution
+Scale a video
+Resize this video
+$$$|||

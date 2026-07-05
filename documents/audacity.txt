@@ -1,0 +1,7 @@
+Audacity command to normalize audio | audacity.normalize()
+
+Audacity command to import audio | audacity.import_audio(a1)
+
+Audacity command to select the complete audio track | audacity.select_all()
+
+Audacity command to export the new normalized output | audacity.export(output_file)

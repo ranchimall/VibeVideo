@@ -1,3 +1,5 @@
+import os
+
 class AudacityEngine:
 
     def __init__(self):
@@ -9,10 +11,7 @@ class AudacityEngine:
     
     def connect(self):
         print("Connecting to Audacity...")
-        print("Connecting to Audacity...")
 
-        self.to_pipe = open(self.to_pipe_name, "w")
-        self.from_pipe = open(self.from_pipe_name, "r")
         self.to_pipe = open(self.to_pipe_name, "w")
         self.from_pipe = open(self.from_pipe_name, "r")
 
@@ -42,6 +41,11 @@ class AudacityEngine:
         return repr("".join(lines))    
 
     def import_audio(self, filename):
+
+        filename = os.path.abspath(filename)
+
+        print("Importing:", filename)
+
         return self.do_command(
             f'Import2: Filename="{filename}"'
         )
@@ -55,8 +59,13 @@ class AudacityEngine:
 
 
     def export(self, filename):
+
+        filename = os.path.abspath(filename)
+
+        print("Exporting:", filename)
+
         return self.do_command(
             f'Export2: Filename="{filename}"'
-        )        
+        )
 
 

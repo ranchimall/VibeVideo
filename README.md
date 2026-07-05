@@ -44,6 +44,11 @@ To use the **Video Face Swapping** feature, you will need to install InsightFace
 pip install insightface onnxruntime opencv-python
 ```
 
+To use the **YouTube Download** feature, you will need to install `yt-dlp`:
+```bash
+pip install yt-dlp
+```
+
 
 ---
 
@@ -90,6 +95,8 @@ The table below summarizes the natural language commands supported by the FAISS 
 | **`audio_extract`** | `extract audio from f1.mp4 to track.mp3`, `rip audio track from file1.mov` | `input_files`, `output_file` | Standalone audio track extracted from video (default: `<input>_extracted.mp3`) | Core FFmpeg |
 | **`audio_replace`** | `replace audio in file1.mp4 with background.mp3`, `add backing music f2 to f1` | `input_files`, `output_file` | Video output combined with new audio input (default: `replaced_output.mp4`) | Core FFmpeg |
 | **`audio_visual`** | `generate waveform video for f2.mp3`, `generate spectrogram image of f2` | `input_files`, `output_file`, `visual_type` | Waveform video (`.mp4`) or Spectrogram image (`.png`) | Core FFmpeg |
+| **`audio_normalize`**| `normalize audio f2.mp3`, `normalize loudness of f2` | `input_files`, `output_file` | Audio file with normalized volume (default: `<input>_normalized.<ext>`) | Audacity |
+| **`download_youtube`**| `download a youtube video`, `download youtube link` | `url`, `quality`, `start_time`, `end_time` | Downloaded YouTube video clip (default: `<video_title>.mp4`) | yt-dlp |
 
 ---
 
