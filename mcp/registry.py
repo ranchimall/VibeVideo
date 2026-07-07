@@ -100,6 +100,12 @@ MCP_REGISTRY = {
         "output": ["output_file"],
         "errors": ["file_not_found", "merge_failed"]
     },
+    "video_layer": {
+        "action": "video_layer",
+        "input": ["input_files", "layer_mode", "pip_position", "blend_opacity"],
+        "output": ["output_file"],
+        "errors": ["file_not_found", "layer_failed"]
+    },
     "audio_trim": {
         "action": "audio_trim",
         "input": ["input_files", "start_time", "end_time", "duration"],

@@ -4,3 +4,4 @@ __pycache__/
 models/*.onnx
 models/*.faiss
 models/*.pkl
+models/chroma_db/

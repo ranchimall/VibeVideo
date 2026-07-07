@@ -12,6 +12,7 @@ from mcp.instruction import find_mcp_instruction
 from mcp.capability_resolver import resolve_tool
 from engines.ffmpeg_engine import execute_ffmpeg
 from mcp.executor import execute as execute_tool_instruction
+from mcp.chroma_store import seed_collections, load_all_chunks
 
 print("Python:", sys.executable)
 print("CWD:", os.getcwd())
@@ -60,30 +61,14 @@ print("Loading embedding model...")
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-from pathlib import Path
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-documents_folder = os.path.join(BASE_DIR, "documents")
 
-chunks = []
+# Seed ChromaDB from documents/*.txt (no-op if already done)
+print("Initialising ChromaDB...")
+seed_collections()
 
-for file in Path(documents_folder).glob("*.txt"):
-
-    with open(file, "r", encoding="utf-8") as f:
-        text = f.read()
-
-    sections = text.split("$$$|||")
-
-    for section in sections:
-
-        section = section.strip()
-
-        if section:
-
-            chunks.append({
-                "filename": file.name,
-                "text": section
-            })
+# Load all capability chunks from ChromaDB and build FAISS index
+chunks = load_all_chunks()
 
 texts = [chunk["text"] for chunk in chunks]
 
@@ -95,7 +80,7 @@ index = faiss.IndexFlatL2(dimension)
 
 index.add(np.array(embeddings).astype("float32"))
 
-print("FAISS index ready.\n")
+print(f"FAISS index ready ({len(chunks)} entries from ChromaDB).\n")
 
 # extract parameters from query
 
@@ -120,7 +105,38 @@ def parse_parameters(text):
         "url": None,
         "quality": None,
         "delete_full": False,
+        "layer_mode": "tile",     # tile | pip | blend
+        "pip_position": "bottom-right",  # top-left | top-right | bottom-left | bottom-right
+        "blend_opacity": 0.5,     # 0.0-1.0 weight of base (first) video in blend mode
     }
+
+    # layer_mode: blend | pip | tile (default)
+    if re.search(r'\b(blend|ghost|mix|transparent|opacity|see.?through)\b', text, re.I):
+        params["layer_mode"] = "blend"
+    elif re.search(r'\b(pip|picture.in.picture|corner|inset|small|miniature)\b', text, re.I):
+        params["layer_mode"] = "pip"
+    else:
+        params["layer_mode"] = "tile"
+
+    # blend_opacity: weight of the FIRST (base) video, e.g. "70%" → 0.7
+    # Phrases: "70%", "70 percent", "opacity 70", "at 0.7"
+    m_op = re.search(r'(\d+(?:\.\d+)?)\s*(?:%|percent)', text, re.I)
+    if not m_op:
+        m_op = re.search(r'\b(?:opacity|weight|alpha)\s+(\d+(?:\.\d+)?)', text, re.I)
+    if m_op:
+        val = float(m_op.group(1))
+        # If >1 treat as percentage (70 → 0.7), else already a fraction (0.7)
+        params["blend_opacity"] = val / 100.0 if val > 1 else val
+
+    # pip_position
+    if re.search(r'\b(top.?left|upper.?left)\b', text, re.I):
+        params["pip_position"] = "top-left"
+    elif re.search(r'\b(top.?right|upper.?right)\b', text, re.I):
+        params["pip_position"] = "top-right"
+    elif re.search(r'\b(bottom.?left|lower.?left)\b', text, re.I):
+        params["pip_position"] = "bottom-left"
+    else:
+        params["pip_position"] = "bottom-right"  # default PiP position
 
     # fps
 

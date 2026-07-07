@@ -52,6 +52,7 @@ CAPABILITY_TOOL_MAP = {
     "screen_record_audio": {"tool": "ffmpeg", "implementation": "screen_record_audio"},
     "video_clip": {"tool": "ffmpeg", "implementation": "video_clip"},
     "video_merge": {"tool": "ffmpeg", "implementation": "video_merge"},
+    "video_layer": {"tool": "ffmpeg", "implementation": "video_layer"},
     "audio_trim": {"tool": "ffmpeg", "implementation": "audio_trim"},
     "audio_volume": {"tool": "ffmpeg", "implementation": "audio_volume"},
     "audio_fade": {"tool": "ffmpeg", "implementation": "audio_fade"},

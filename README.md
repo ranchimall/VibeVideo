@@ -5,10 +5,10 @@ An intelligent, natural language-driven command-line interface for video and aud
 
 ## Directory Structure
 
-- **`documents/`**: Contains text files describing tool capabilities, which are chunked and embedded by FAISS to understand natural language intent.
+- **`documents/`**: Contains text files that act as the canonical source-of-truth for all capabilities. These are parsed and stored in ChromaDB on first startup, then indexed by FAISS for fast in-memory semantic search.
 - **`engines/`**: Houses the backend integration scripts (`ffmpeg_engine.py`, `audacity_engine.py`, `insightface_engine.py`, `ytdl.py`) that actually execute commands on media files.
-- **`mcp/`**: Contains the Model Context Protocol (MCP) logic (`capability_resolver.py`, `executor.py`, `registry.py`) that extracts parameters, queries the FAISS index, and dispatches instructions to engines.
-- **`models/`**: Stores downloaded machine learning weights (e.g., InsightFace) and the serialized FAISS vector index.
+- **`mcp/`**: Contains the Model Context Protocol (MCP) logic (`chroma_store.py`, `capability_resolver.py`, `executor.py`, `registry.py`) that seeds ChromaDB, builds the FAISS index, extracts parameters from commands, and dispatches instructions to engines.
+- **`models/`**: Stores downloaded machine learning weights (e.g., InsightFace ONNX model) and the ChromaDB persistent vector database (`chroma_db/` — gitignored).
 - **`sample_media/`**: The designated working directory to place your videos, audio, and images for editing.
 - **`tests/`**: Contains automated scripts to verify the CLI's capabilities.
 
@@ -82,7 +82,7 @@ pip install -r requirements.txt
 
 ## Commands & Capabilities Reference
 
-The table below summarizes the natural language commands supported by the FAISS index, the parameters they parse, and the tools they trigger:
+The table below summarizes the natural language commands supported. On first startup, all capabilities are seeded from `documents/*.txt` into a **ChromaDB** persistent vector store (organized into 4 collections: `video_editing`, `audio_editing`, `ai_tools`, `web_tools`). **FAISS** then indexes these for fast in-memory semantic search on every command.
 
 | Intent (FAISS Category) | Sample Prompts / Commands | Parsed Parameters | Output File / Result | Dependencies |
 | :--- | :--- | :--- | :--- | :--- |
@@ -92,6 +92,7 @@ The table below summarizes the natural language commands supported by the FAISS 
 | **`video_clip`** | `clip f1 from 00:05 to 00:15 into cut.mp4`, `trim file2 for 10 seconds` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed video clip (default: `<input>_clipped.<ext>`) | Core FFmpeg |
 | **`resize_video`** | `resize video to 1920x1080 as large.mp4`, `scale video to 640x480` | `input_files`, `output_file`, `width`, `height` | Video resized to new dimensions (default: `<input>_resized.<ext>`) | Core FFmpeg |
 | **`video_merge`** | `merge f1 and f2 using slideleft transition as final.mp4`, `combine file1.mp4 and file2.mp4` | `input_files`, `output_file`, `transition` | Merged video. If 2 videos and transition defined, applies xfade. (default: `merged.mp4`) | Core FFmpeg |
+| **`video_layer`** | `layer bird.mp4 and flower.mp4`, `pip bird and flower bottom right`, `blend bird 80% and flower` | `input_files`, `output_file`, `layer_mode`, `pip_position`, `blend_opacity` | Composited video layers (tile/pip/blend) (default: `layered_output.mp4`) | Core FFmpeg |
 | **`face_swap_video`** | `swap face in video.mp4 with face.jpg`, `replace face in f1 with f2` | `input_files`, `output_file` | Video with the face swapped seamlessly (default: `<input>_faceswap.<ext>`) | InsightFace, ONNXRuntime, OpenCV |
 | **`audio_trim`** | `trim audio f2 from 10 to 30 seconds`, `cut f2 from 00:00:10 to 00:00:30` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed audio file (default: `<input>_trimmed.<ext>`) | Core FFmpeg |
 | **`audio_volume`** | `double volume of f2.mp3`, `make audio f2.wav quieter by volume 0.5` | `input_files`, `output_file`, `volume_level` | Adjusted volume audio/video file (default: `<input>_volume.<ext>`) | Core FFmpeg |
@@ -141,6 +142,12 @@ The editor extracts details from your commands using a regular expression parser
 * **Audio Visualizer Type**:
   * Keyword `spectrogram` $\rightarrow$ renders static spectrogram image
   * Keyword `waveform` or default $\rightarrow$ renders animated waveform video
+* **Layer Mode**: Extracted using keywords `blend`, `ghost`, `mix`, `pip`, `picture in picture`, `corner`. Default is `tile` (quadrant layout).
+  * *Example:* `blend video1 and video2`, `picture in picture mode`
+* **PiP Position**: Extracted using keywords `top left`, `top right`, `bottom left`, `bottom right`. Default is `bottom-right`.
+  * *Example:* `pip video1 and video2 top left`
+* **Blend Opacity**: Extracted using keywords `opacity`, `weight`, or `%`/`percent`. Controls base video weight in blend mode.
+  * *Example:* `blend video1 80% and video2`, `opacity 0.7`
 
 ---
 

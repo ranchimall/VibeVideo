@@ -274,6 +274,158 @@ def execute_ffmpeg(implementation, instruction):
         subprocess.run(cmd, shell=True)
         return output_file
 
+    elif implementation == "video_layer":
+        # Composite multiple videos/PNGs into one frame.
+        # Supports 3 modes (set by layer_mode param):
+        #   tile  → quadrant tiling, base always visible (default)
+        #   pip   → picture-in-picture, overlay shrunk to a corner
+        #   blend → pixel-average blend, both videos ghosted together
+        if not input_files:
+            raise ValueError("No input files specified for layering.")
+        if len(input_files) < 2:
+            raise ValueError("At least 2 files are required for layering.")
+
+        output_file = output_file or "layered_output.mp4"
+        layer_mode  = inp.get("layer_mode", "tile") or "tile"
+        pip_pos     = inp.get("pip_position", "bottom-right") or "bottom-right"
+        blend_w     = float(inp.get("blend_opacity") or 0.5)
+        blend_w     = max(0.0, min(1.0, blend_w))   # clamp to [0, 1]
+
+        IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".webp"}
+        VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".webm"}
+
+        # Build -i input flags (images need -loop 1 to stay for full duration)
+        input_args_parts = []
+        for f in input_files:
+            ext = os.path.splitext(f.lower())[1]
+            if ext in IMAGE_EXTS:
+                input_args_parts.append(f'-loop 1 -i "{f}"')
+            else:
+                input_args_parts.append(f'-i "{f}"')
+        input_args = " ".join(input_args_parts)
+
+        # Track audio sources
+        audio_indices = []
+        ext0 = os.path.splitext(input_files[0].lower())[1]
+        if ext0 in VIDEO_EXTS and has_audio_stream(input_files[0], ffmpeg_path):
+            audio_indices.append(0)
+
+        filter_parts = []
+
+        # ── Scale base to ≤1920×1080 ──────────────────────────────────────
+        filter_parts.append(
+            "[0:v]scale='min(1920,iw)':'min(1080,ih)'"
+            ":force_original_aspect_ratio=decrease,"
+            "pad=ceil(iw/2)*2:ceil(ih/2)*2[base]"
+        )
+        last_label = "base"
+
+        if layer_mode == "blend":
+            # ── BLEND MODE: weighted mix of 2 streams ─────────────────────
+            # blend_w = weight of base (first video). overlay gets (1 - blend_w).
+            # e.g. blend_w=0.7 → base at 70%, overlay at 30%
+            overlay_w = round(1.0 - blend_w, 4)
+            filter_parts.append(
+                f"[1:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
+                f"pad=1920:1080:(ow-iw)/2:(oh-ih)/2[blend_top]"
+            )
+            filter_parts.append(
+                f"[base][blend_top]blend=all_expr='A*{blend_w}+B*{overlay_w}'[v1]"
+            )
+            last_label = "v1"
+            ext1 = os.path.splitext(input_files[1].lower())[1]
+            if ext1 in VIDEO_EXTS and has_audio_stream(input_files[1], ffmpeg_path):
+                audio_indices.append(1)
+
+        elif layer_mode == "pip":
+            # ── PIP MODE: overlay shrunk to 25% in a corner ───────────────
+            pos_map = {
+                "top-left":     "10:10",
+                "top-right":    "W-w-10:10",
+                "bottom-left":  "10:H-h-10",
+                "bottom-right": "W-w-10:H-h-10",
+            }
+            for i in range(1, len(input_files)):
+                ext = os.path.splitext(input_files[i].lower())[1]
+                sl  = f"layer{i}s"
+                ol  = f"v{i}"
+                pos = pos_map.get(pip_pos, "W-w-10:H-h-10")
+
+                if ext in IMAGE_EXTS:
+                    filter_parts.append(
+                        f"[{i}:v]scale='min(iw,480)':'min(ih,270)',"
+                        f"pad=ceil(iw/2)*2:ceil(ih/2)*2[{sl}]"
+                    )
+                else:
+                    filter_parts.append(
+                        f"[{i}:v]scale=480:270:force_original_aspect_ratio=decrease,"
+                        f"pad=ceil(iw/2)*2:ceil(ih/2)*2[{sl}]"
+                    )
+                    if has_audio_stream(input_files[i], ffmpeg_path):
+                        audio_indices.append(i)
+
+                filter_parts.append(
+                    f"[{last_label}][{sl}]overlay={pos}:format=auto[{ol}]"
+                )
+                last_label = ol
+
+        else:
+            # ── TILE MODE (default): quadrant tiling ──────────────────────
+            tile_positions = ["0:0", "W/2:0", "0:H/2", "W/2:H/2"]
+            for i in range(1, len(input_files)):
+                ext = os.path.splitext(input_files[i].lower())[1]
+                sl  = f"layer{i}s"
+                ol  = f"v{i}"
+                pos = tile_positions[(i - 1) % len(tile_positions)]
+
+                if ext in IMAGE_EXTS:
+                    filter_parts.append(
+                        f"[{i}:v]scale='min(iw,960)':'min(ih,540)',"
+                        f"pad=ceil(iw/2)*2:ceil(ih/2)*2[{sl}]"
+                    )
+                else:
+                    filter_parts.append(
+                        f"[{i}:v]scale=960:540:force_original_aspect_ratio=decrease,"
+                        f"pad=ceil(iw/2)*2:ceil(ih/2)*2[{sl}]"
+                    )
+                    if has_audio_stream(input_files[i], ffmpeg_path):
+                        audio_indices.append(i)
+
+                filter_parts.append(
+                    f"[{last_label}][{sl}]overlay={pos}:format=auto[{ol}]"
+                )
+                last_label = ol
+
+        # ── Audio mix ─────────────────────────────────────────────────────
+        if len(audio_indices) > 1:
+            audio_inputs = "".join(f"[{idx}:a]" for idx in audio_indices)
+            filter_parts.append(
+                f"{audio_inputs}amix=inputs={len(audio_indices)}:duration=longest[aout]"
+            )
+            audio_map = '-map "[aout]"'
+        elif len(audio_indices) == 1:
+            audio_map = f"-map {audio_indices[0]}:a"
+        else:
+            audio_map = ""
+
+        filter_complex = ";".join(filter_parts)
+
+        # Use -t instead of -shortest to avoid infinite loops with -loop 1 PNGs
+        base_duration = get_video_duration(input_files[0], ffmpeg_path)
+        duration_flag = f"-t {base_duration:.3f}" if base_duration else "-shortest"
+
+        cmd = (
+            f'"{ffmpeg_path}" -y {input_args} '
+            f'-filter_complex "{filter_complex}" '
+            f'-map "[{last_label}]" {audio_map} '
+            f'-c:v libx264 -c:a aac {duration_flag} '
+            f'"{output_file}"'
+        )
+        print(f"\nMode: {layer_mode} | Position: {pip_pos} | Opacity: base={blend_w*100:.0f}% overlay={round(1-blend_w,4)*100:.0f}%")
+        print(f"\nExecuting: {cmd}")
+        subprocess.run(cmd, shell=True)
+        return output_file
+
     # Finally, fallback to simple templates
     if implementation in FFMPEG_COMMANDS:
         template = FFMPEG_COMMANDS[implementation]

@@ -62,6 +62,20 @@ combine vid1.mp4 and vid2.mp4 into final.mp4
 join videos using slideleft
 
 $$$|||
+video_layer
+layer video on top of video
+overlay logo.png on video.mp4
+composite multiple videos together
+stack videos on top of each other
+overlay transparent png on video
+put image on top of video
+layer bird.mp4 and flower.mp4 into output.mp4
+overlay face_a.png on bird.mp4 as layered.mp4
+composite bird.mp4 flower.mp4 and logo.png into final.mp4
+add overlay to video
+layer multiple clips together
+
+$$$|||
 audio_trim
 trim audio from 10 to 30 seconds
 cut audio song.mp3 from 00:00:10 to 00:00:30
