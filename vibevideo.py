@@ -105,13 +105,17 @@ def parse_parameters(text):
         "url": None,
         "quality": None,
         "delete_full": False,
-        "layer_mode": "tile",     # tile | pip | blend
+        "layer_mode": "tile",     # tile | pip | blend | overlay
         "pip_position": "bottom-right",  # top-left | top-right | bottom-left | bottom-right
         "blend_opacity": 0.5,     # 0.0-1.0 weight of base (first) video in blend mode
     }
 
-    # layer_mode: blend | pip | tile (default)
-    if re.search(r'\b(blend|ghost|mix|transparent|opacity|see.?through)\b', text, re.I):
+    # layer_mode: blend | pip | overlay | screen | tile (default)
+    if re.search(r'\b(overlay|full.?screen|on top)\b', text, re.I):
+        params["layer_mode"] = "overlay"
+    elif re.search(r'\b(screen|vfx)\b', text, re.I):
+        params["layer_mode"] = "screen"
+    elif re.search(r'\b(blend|ghost|mix|transparent|opacity|see.?through)\b', text, re.I):
         params["layer_mode"] = "blend"
     elif re.search(r'\b(pip|picture.in.picture|corner|inset|small|miniature)\b', text, re.I):
         params["layer_mode"] = "pip"

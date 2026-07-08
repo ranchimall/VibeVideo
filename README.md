@@ -92,7 +92,7 @@ The table below summarizes the natural language commands supported. On first sta
 | **`video_clip`** | `clip f1 from 00:05 to 00:15 into cut.mp4`, `trim file2 for 10 seconds` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed video clip (default: `<input>_clipped.<ext>`) | Core FFmpeg |
 | **`resize_video`** | `resize video to 1920x1080 as large.mp4`, `scale video to 640x480` | `input_files`, `output_file`, `width`, `height` | Video resized to new dimensions (default: `<input>_resized.<ext>`) | Core FFmpeg |
 | **`video_merge`** | `merge f1 and f2 using slideleft transition as final.mp4`, `combine file1.mp4 and file2.mp4` | `input_files`, `output_file`, `transition` | Merged video. If 2 videos and transition defined, applies xfade. (default: `merged.mp4`) | Core FFmpeg |
-| **`video_layer`** | `layer bird.mp4 and flower.mp4`, `pip bird and flower bottom right`, `blend bird 80% and flower` | `input_files`, `output_file`, `layer_mode`, `pip_position`, `blend_opacity` | Composited video layers (tile/pip/blend) (default: `layered_output.mp4`) | Core FFmpeg |
+| **`video_layer`** | `layer bird.mp4 and flower.mp4`, `overlay hud.png on bird.mp4`, `blend bird 80% and flower` | `input_files`, `output_file`, `layer_mode`, `pip_position`, `blend_opacity` | Composited video layers (tile/pip/blend/overlay) (default: `layered_output.mp4`) | Core FFmpeg |
 | **`face_swap_video`** | `swap face in video.mp4 with face.jpg`, `replace face in f1 with f2` | `input_files`, `output_file` | Video with the face swapped seamlessly (default: `<input>_faceswap.<ext>`) | InsightFace, ONNXRuntime, OpenCV |
 | **`audio_trim`** | `trim audio f2 from 10 to 30 seconds`, `cut f2 from 00:00:10 to 00:00:30` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed audio file (default: `<input>_trimmed.<ext>`) | Core FFmpeg |
 | **`audio_volume`** | `double volume of f2.mp3`, `make audio f2.wav quieter by volume 0.5` | `input_files`, `output_file`, `volume_level` | Adjusted volume audio/video file (default: `<input>_volume.<ext>`) | Core FFmpeg |
@@ -142,8 +142,9 @@ The editor extracts details from your commands using a regular expression parser
 * **Audio Visualizer Type**:
   * Keyword `spectrogram` $\rightarrow$ renders static spectrogram image
   * Keyword `waveform` or default $\rightarrow$ renders animated waveform video
-* **Layer Mode**: Extracted using keywords `blend`, `ghost`, `mix`, `pip`, `picture in picture`, `corner`. Default is `tile` (quadrant layout).
-  * *Example:* `blend video1 and video2`, `picture in picture mode`
+* **Layer Mode**: Extracted using keywords `overlay`, `full screen`, `blend`, `screen`, `ghost`, `mix`, `pip`, `picture in picture`, `corner`. Default is `tile` (quadrant layout).
+  * **Tip:** Use `overlay` for files with true transparency (like `.png` or `.mov`). Use `screen` for `.mp4` VFX files with solid black backgrounds (it makes the black invisible).
+  * *Example:* `overlay video.mp4 and hud.png`, `screen video.mp4 and vfx.mp4`, `blend video1 and video2`
 * **PiP Position**: Extracted using keywords `top left`, `top right`, `bottom left`, `bottom right`. Default is `bottom-right`.
   * *Example:* `pip video1 and video2 top left`
 * **Blend Opacity**: Extracted using keywords `opacity`, `weight`, or `%`/`percent`. Controls base video weight in blend mode.
@@ -151,3 +152,7 @@ The editor extracts details from your commands using a regular expression parser
 
 ---
 
+## Developer Notes & FFmpeg Quirks
+When working with FFmpeg's `blend` filter (used for `screen` mode and VFX compositing), you might encounter **chroma shifting** (where the output turns bright magenta). 
+* **The Cause:** The `blend` filter only operates on **planar** formats. If you try to force RGB space using standard `format=rgb24` (which is a **packed** format), FFmpeg will silently auto-convert the stream back into YUV planar space behind the scenes. Running screen math on YUV color channels instantly causes intense magenta hue shifts.
+* **The Fix:** We exclusively use `format=gbrp` (Green, Blue, Red Planar) before passing streams into the `blend` filter. This ensures FFmpeg keeps the math strictly in RGB space, allowing VFX MP4s (like glowing HUDs on black backgrounds) to composite beautifully and accurately.

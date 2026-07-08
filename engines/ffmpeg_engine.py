@@ -337,6 +337,34 @@ def execute_ffmpeg(implementation, instruction):
             if ext1 in VIDEO_EXTS and has_audio_stream(input_files[1], ffmpeg_path):
                 audio_indices.append(1)
 
+        elif layer_mode == "screen":
+            # ── SCREEN MODE: Lighten blend (black becomes transparent) ──
+            # Perfect for .mp4 VFX files (like explosions or HUDs) with black backgrounds.
+            # Convert base to PLANAR RGB (gbrp) to prevent magenta chroma-shifting!
+            filter_parts.append(f"[{last_label}]format=gbrp[base_rgb]")
+            last_label = "base_rgb"
+
+            for i in range(1, len(input_files)):
+                ext = os.path.splitext(input_files[i].lower())[1]
+                sl  = f"layer{i}s"
+                ol  = f"v{i}"
+
+                filter_parts.append(
+                    f"[{i}:v]format=gbrp,scale=1920:1080:force_original_aspect_ratio=decrease,"
+                    f"pad=1920:1080:(ow-iw)/2:(oh-ih)/2[{sl}]"
+                )
+                filter_parts.append(
+                    f"[{last_label}][{sl}]blend=all_mode=screen[{ol}]"
+                )
+                last_label = ol
+
+                if ext in VIDEO_EXTS and has_audio_stream(input_files[i], ffmpeg_path):
+                    audio_indices.append(i)
+
+            # Convert back to yuv420p at the end for standard MP4 compatibility
+            filter_parts.append(f"[{last_label}]format=yuv420p[final_screen]")
+            last_label = "final_screen"
+
         elif layer_mode == "pip":
             # ── PIP MODE: overlay shrunk to 25% in a corner ───────────────
             pos_map = {
@@ -368,6 +396,24 @@ def execute_ffmpeg(implementation, instruction):
                     f"[{last_label}][{sl}]overlay={pos}:format=auto[{ol}]"
                 )
                 last_label = ol
+
+        elif layer_mode == "overlay":
+            # ── OVERLAY MODE: Full screen stretch to match base exactly ──
+            for i in range(1, len(input_files)):
+                ext = os.path.splitext(input_files[i].lower())[1]
+                sl  = f"layer{i}s"
+                ol  = f"v{i}"
+
+                filter_parts.append(
+                    f"[{i}:v]scale=1920:1080[{sl}]"
+                )
+                filter_parts.append(
+                    f"[{last_label}][{sl}]overlay=0:0:format=auto[{ol}]"
+                )
+                last_label = ol
+
+                if ext in VIDEO_EXTS and has_audio_stream(input_files[i], ffmpeg_path):
+                    audio_indices.append(i)
 
         else:
             # ── TILE MODE (default): quadrant tiling ──────────────────────
