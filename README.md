@@ -1,3 +1,8 @@
+# This is AI Blockchain Contract project
+This project is part of projectai token system of AI Blockchain Contract series of RanchiMall. A blockchain contract is a governance structure on the blockchain which enables human led supervision over blockchain projects, as opposed to Corporate incorporation in traditional businesses and purely automated Smartcontracts in DAOs (Distributed Autonomous Organisation). Funding for Blockchain Contract comes directly on blockchain.
+
+## AIBC (Artificial Intelligence Blockchain Contract) system: https:ranchimall.github.io/aibc
+
 # VibeVideo
 
 An intelligent, natural language-driven command-line interface for video and audio editing. 
