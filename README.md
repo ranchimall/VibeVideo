@@ -92,7 +92,7 @@ The table below summarizes the natural language commands supported. On first sta
 | **`video_clip`** | `clip f1 from 00:05 to 00:15 into cut.mp4`, `trim file2 for 10 seconds` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed video clip (default: `<input>_clipped.<ext>`) | Core FFmpeg |
 | **`resize_video`** | `resize video to 1920x1080 as large.mp4`, `scale video to 640x480` | `input_files`, `output_file`, `width`, `height` | Video resized to new dimensions (default: `<input>_resized.<ext>`) | Core FFmpeg |
 | **`video_merge`** | `merge f1 and f2 using slideleft transition as final.mp4`, `combine file1.mp4 and file2.mp4` | `input_files`, `output_file`, `transition` | Merged video. If 2 videos and transition defined, applies xfade. (default: `merged.mp4`) | Core FFmpeg |
-| **`video_layer`** | `layer bird.mp4 and flower.mp4`, `overlay hud.png on bird.mp4`, `blend bird 80% and flower` | `input_files`, `output_file`, `layer_mode`, `pip_position`, `blend_opacity` | Composited video layers (tile/pip/blend/overlay) (default: `layered_output.mp4`) | Core FFmpeg |
+| **`video_layer`** | `overlay bird.mp4 and hud.png top right and vfx.mp4 bottom left` | `input_files`, `output_file`, `layer_positions` | Composited video layers (default: `layered_output.mp4`) | Core FFmpeg |
 | **`face_swap_video`** | `swap face in video.mp4 with face.jpg`, `replace face in f1 with f2` | `input_files`, `output_file` | Video with the face swapped seamlessly (default: `<input>_faceswap.<ext>`) | InsightFace, ONNXRuntime, OpenCV |
 | **`audio_trim`** | `trim audio f2 from 10 to 30 seconds`, `cut f2 from 00:00:10 to 00:00:30` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed audio file (default: `<input>_trimmed.<ext>`) | Core FFmpeg |
 | **`audio_volume`** | `double volume of f2.mp3`, `make audio f2.wav quieter by volume 0.5` | `input_files`, `output_file`, `volume_level` | Adjusted volume audio/video file (default: `<input>_volume.<ext>`) | Core FFmpeg |
@@ -142,17 +142,41 @@ The editor extracts details from your commands using a regular expression parser
 * **Audio Visualizer Type**:
   * Keyword `spectrogram` $\rightarrow$ renders static spectrogram image
   * Keyword `waveform` or default $\rightarrow$ renders animated waveform video
-* **Layer Mode**: Extracted using keywords `overlay`, `full screen`, `blend`, `screen`, `ghost`, `mix`, `pip`, `picture in picture`, `corner`. Default is `tile` (quadrant layout).
-  * **Tip:** Use `overlay` for files with true transparency (like `.png` or `.mov`). Use `screen` for `.mp4` VFX files with solid black backgrounds (it makes the black invisible).
-  * *Example:* `overlay video.mp4 and hud.png`, `screen video.mp4 and vfx.mp4`, `blend video1 and video2`
-* **PiP Position**: Extracted using keywords `top left`, `top right`, `bottom left`, `bottom right`. Default is `bottom-right`.
-  * *Example:* `pip video1 and video2 top left`
-* **Blend Opacity**: Extracted using keywords `opacity`, `weight`, or `%`/`percent`. Controls base video weight in blend mode.
-  * *Example:* `blend video1 80% and video2`, `opacity 0.7`
+* **Layer Mode**: Extracted using the keyword `overlay`. Default is `tile` (quadrant layout).
+  * **Universal Overlay:** Use keyword `overlay` to stack multiple files. The engine intelligently auto-detects transparency (Alpha for PNG vs Screen for MP4 VFX).
+    * **Base Video:** The *first* file in the command acts as the **Base** (background).
+    * **Overlays:** Every file listed after the base acts as a **Layer** placed on top.
+* **Per-File Layer Positions**: Extracted using keywords `top left`, `top right`, `bottom left`, `bottom right`, `full`. 
+  * You can assign a specific position to *each individual layer* by writing the position immediately after the filename.
+  * If you specify a corner (e.g. `top right`), the engine automatically scales that specific layer down to a Picture-in-Picture (PiP) size and pads it into the corner.
+  * If you don't specify a corner, the layer is scaled to full-screen (1920x1080).
+  * *Example:* `overlay base.mp4 and hud.png top right and vfx.mp4 bottom left`
 
 ---
 
-## Developer Notes & FFmpeg Quirks
-When working with FFmpeg's `blend` filter (used for `screen` mode and VFX compositing), you might encounter **chroma shifting** (where the output turns bright magenta). 
-* **The Cause:** The `blend` filter only operates on **planar** formats. If you try to force RGB space using standard `format=rgb24` (which is a **packed** format), FFmpeg will silently auto-convert the stream back into YUV planar space behind the scenes. Running screen math on YUV color channels instantly causes intense magenta hue shifts.
-* **The Fix:** We exclusively use `format=gbrp` (Green, Blue, Red Planar) before passing streams into the `blend` filter. This ensures FFmpeg keeps the math strictly in RGB space, allowing VFX MP4s (like glowing HUDs on black backgrounds) to composite beautifully and accurately.
+## Advanced: Universal Overlay Engine
+The `overlay` command acts as a universal, intelligent compositor that allows you to build complex multi-layered VFX scenes in a single sentence.
+
+### The Base Video vs Layers
+The **very first file** you specify is always the **Base** (the background). All subsequent files are processed as layers stacked on top.
+
+### Smart Alpha vs Screen Detection
+You don't need to specify whether a file has a black background or a transparent background. 
+* If a layer is an `.mp4`, the engine automatically converts it to `gbrp` color space and applies a **Screen Blend** (perfectly erasing the black background).
+* If a layer is a `.png` or `.mov`, it automatically applies standard **Alpha Transparency**.
+
+### Layer Positioning (PiP vs Full-Screen)
+By default, all layers are scaled to full-screen 1080p. However, you can convert any layer into a Picture-in-Picture (PiP) by specifying a corner immediately after the filename.
+
+**Example Command:**
+```text
+overlay bird.mp4 and hud.png top right and fire.mp4 bottom left and glitch.mp4
+```
+**How it processes:**
+1. `bird.mp4` $\rightarrow$ First file, so it acts as the **Base** video (background).
+2. `hud.png top right` $\rightarrow$ Detected as a PNG (Alpha). Position specified, so it is shrunk to 25% size and placed in the **Top Right** corner.
+3. `fire.mp4 bottom left` $\rightarrow$ Detected as an MP4 (Screen blend erases black). Position specified, so it is shrunk to 25% size and placed in the **Bottom Left** corner.
+4. `glitch.mp4` $\rightarrow$ No position specified! Detected as an MP4 (Screen blend). Scaled to **Full Screen 1080p** and layered over everything.
+
+---
+

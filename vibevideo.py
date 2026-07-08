@@ -106,41 +106,15 @@ def parse_parameters(text):
         "quality": None,
         "delete_full": False,
         "layer_mode": "tile",     # tile | pip | blend | overlay
-        "pip_position": "bottom-right",  # top-left | top-right | bottom-left | bottom-right
-        "blend_opacity": 0.5,     # 0.0-1.0 weight of base (first) video in blend mode
     }
 
-    # layer_mode: blend | pip | overlay | screen | tile (default)
-    if re.search(r'\b(overlay|full.?screen|on top)\b', text, re.I):
+    # layer_mode: overlay | tile (default)
+    if re.search(r'\b(overlay|full.?screen|on top|screen|vfx|pip|picture.in.picture|corner|inset|small|miniature|blend|ghost|mix|transparent|opacity|see.?through)\b', text, re.I):
         params["layer_mode"] = "overlay"
-    elif re.search(r'\b(screen|vfx)\b', text, re.I):
-        params["layer_mode"] = "screen"
-    elif re.search(r'\b(blend|ghost|mix|transparent|opacity|see.?through)\b', text, re.I):
-        params["layer_mode"] = "blend"
-    elif re.search(r'\b(pip|picture.in.picture|corner|inset|small|miniature)\b', text, re.I):
-        params["layer_mode"] = "pip"
     else:
         params["layer_mode"] = "tile"
 
-    # blend_opacity: weight of the FIRST (base) video, e.g. "70%" → 0.7
-    # Phrases: "70%", "70 percent", "opacity 70", "at 0.7"
-    m_op = re.search(r'(\d+(?:\.\d+)?)\s*(?:%|percent)', text, re.I)
-    if not m_op:
-        m_op = re.search(r'\b(?:opacity|weight|alpha)\s+(\d+(?:\.\d+)?)', text, re.I)
-    if m_op:
-        val = float(m_op.group(1))
-        # If >1 treat as percentage (70 → 0.7), else already a fraction (0.7)
-        params["blend_opacity"] = val / 100.0 if val > 1 else val
 
-    # pip_position
-    if re.search(r'\b(top.?left|upper.?left)\b', text, re.I):
-        params["pip_position"] = "top-left"
-    elif re.search(r'\b(top.?right|upper.?right)\b', text, re.I):
-        params["pip_position"] = "top-right"
-    elif re.search(r'\b(bottom.?left|lower.?left)\b', text, re.I):
-        params["pip_position"] = "bottom-left"
-    else:
-        params["pip_position"] = "bottom-right"  # default PiP position
 
     # fps
 
@@ -192,6 +166,38 @@ def parse_parameters(text):
             elif len(all_files) >= 2:
                 params["output_file"] = all_files[-1]
                 params["input_files"] = all_files[:-1]
+
+    # Extract per-file overlay positions (e.g. "top right", "bottom left")
+    params["layer_positions"] = ["full"] * len(params.get("input_files", []))
+    if params.get("input_files") and len(params["input_files"]) > 1:
+        for i, filename in enumerate(params["input_files"]):
+            if i == 0: continue # base video is always full
+            
+            start_idx = text.lower().find(filename.lower()) + len(filename)
+            end_idx = len(text)
+            
+            if i < len(params["input_files"]) - 1:
+                next_file = params["input_files"][i+1].lower()
+                next_idx = text.lower().find(next_file, start_idx)
+                if next_idx != -1:
+                    end_idx = next_idx
+                    
+            if params.get("output_file"):
+                out_idx = text.lower().find(params["output_file"].lower(), start_idx)
+                if out_idx != -1 and out_idx < end_idx:
+                    end_idx = out_idx
+                    
+            chunk = text[start_idx:end_idx]
+            
+            if re.search(r'\b(top.?left|upper.?left)\b', chunk, re.I):
+                params["layer_positions"][i] = "top-left"
+            elif re.search(r'\b(top.?right|upper.?right)\b', chunk, re.I):
+                params["layer_positions"][i] = "top-right"
+            elif re.search(r'\b(bottom.?left|lower.?left)\b', chunk, re.I):
+                params["layer_positions"][i] = "bottom-left"
+            elif re.search(r'\b(bottom.?right|lower.?right)\b', chunk, re.I):
+                params["layer_positions"][i] = "bottom-right"
+            # Otherwise remains "full"
 
     # legacy compatibility fallback
     if params["output_file"]:

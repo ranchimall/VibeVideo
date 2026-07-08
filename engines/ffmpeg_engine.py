@@ -287,9 +287,6 @@ def execute_ffmpeg(implementation, instruction):
 
         output_file = output_file or "layered_output.mp4"
         layer_mode  = inp.get("layer_mode", "tile") or "tile"
-        pip_pos     = inp.get("pip_position", "bottom-right") or "bottom-right"
-        blend_w     = float(inp.get("blend_opacity") or 0.5)
-        blend_w     = max(0.0, min(1.0, blend_w))   # clamp to [0, 1]
 
         IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".webp"}
         VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".webm"}
@@ -320,100 +317,60 @@ def execute_ffmpeg(implementation, instruction):
         )
         last_label = "base"
 
-        if layer_mode == "blend":
-            # ── BLEND MODE: weighted mix of 2 streams ─────────────────────
-            # blend_w = weight of base (first video). overlay gets (1 - blend_w).
-            # e.g. blend_w=0.7 → base at 70%, overlay at 30%
-            overlay_w = round(1.0 - blend_w, 4)
-            filter_parts.append(
-                f"[1:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
-                f"pad=1920:1080:(ow-iw)/2:(oh-ih)/2[blend_top]"
-            )
-            filter_parts.append(
-                f"[base][blend_top]blend=all_expr='A*{blend_w}+B*{overlay_w}'[v1]"
-            )
-            last_label = "v1"
-            ext1 = os.path.splitext(input_files[1].lower())[1]
-            if ext1 in VIDEO_EXTS and has_audio_stream(input_files[1], ffmpeg_path):
-                audio_indices.append(1)
-
-        elif layer_mode == "screen":
-            # ── SCREEN MODE: Lighten blend (black becomes transparent) ──
-            # Perfect for .mp4 VFX files (like explosions or HUDs) with black backgrounds.
-            # Convert base to PLANAR RGB (gbrp) to prevent magenta chroma-shifting!
-            filter_parts.append(f"[{last_label}]format=gbrp[base_rgb]")
-            last_label = "base_rgb"
-
-            for i in range(1, len(input_files)):
-                ext = os.path.splitext(input_files[i].lower())[1]
-                sl  = f"layer{i}s"
-                ol  = f"v{i}"
-
-                filter_parts.append(
-                    f"[{i}:v]format=gbrp,scale=1920:1080:force_original_aspect_ratio=decrease,"
-                    f"pad=1920:1080:(ow-iw)/2:(oh-ih)/2[{sl}]"
-                )
-                filter_parts.append(
-                    f"[{last_label}][{sl}]blend=all_mode=screen[{ol}]"
-                )
-                last_label = ol
-
-                if ext in VIDEO_EXTS and has_audio_stream(input_files[i], ffmpeg_path):
-                    audio_indices.append(i)
-
-            # Convert back to yuv420p at the end for standard MP4 compatibility
-            filter_parts.append(f"[{last_label}]format=yuv420p[final_screen]")
-            last_label = "final_screen"
-
-        elif layer_mode == "pip":
-            # ── PIP MODE: overlay shrunk to 25% in a corner ───────────────
+        if layer_mode == "overlay":
+            # ── UNIVERSAL SMART OVERLAY ──
+            # Automatically uses Alpha-Overlay for PNG/MOV and Screen-Blend for MP4/VFX
+            # Automatically scales to PiP or Full-screen based on per-layer position!
+            
+            # For pad filter: ow=1920, oh=1080, iw/ih=scaled width/height
             pos_map = {
                 "top-left":     "10:10",
-                "top-right":    "W-w-10:10",
-                "bottom-left":  "10:H-h-10",
-                "bottom-right": "W-w-10:H-h-10",
+                "top-right":    "1920-iw-10:10",
+                "bottom-left":  "10:1080-ih-10",
+                "bottom-right": "1920-iw-10:1080-ih-10",
             }
+            
+            layer_positions = inp.get("layer_positions", ["full"] * len(input_files))
+            
             for i in range(1, len(input_files)):
                 ext = os.path.splitext(input_files[i].lower())[1]
                 sl  = f"layer{i}s"
                 ol  = f"v{i}"
-                pos = pos_map.get(pip_pos, "W-w-10:H-h-10")
+                
+                pos_key = layer_positions[i] if i < len(layer_positions) else "full"
+                is_pip = pos_key in pos_map
+                pad_pos = pos_map.get(pos_key, "(ow-iw)/2:(oh-ih)/2")
 
-                if ext in IMAGE_EXTS:
+                # Standardize scale: PiP is smaller, overlay/screen is full size
+                if is_pip:
+                    # PiP shrinks to max 480x270 (25% of 1080p)
                     filter_parts.append(
                         f"[{i}:v]scale='min(iw,480)':'min(ih,270)',"
-                        f"pad=ceil(iw/2)*2:ceil(ih/2)*2[{sl}]"
+                        f"pad=1920:1080:{pad_pos}:color=black@0[{sl}]"
                     )
                 else:
                     filter_parts.append(
-                        f"[{i}:v]scale=480:270:force_original_aspect_ratio=decrease,"
-                        f"pad=ceil(iw/2)*2:ceil(ih/2)*2[{sl}]"
+                        f"[{i}:v]scale=1920:1080:force_original_aspect_ratio=decrease,"
+                        f"pad=1920:1080:{pad_pos}:color=black@0[{sl}]"
                     )
-                    if has_audio_stream(input_files[i], ffmpeg_path):
-                        audio_indices.append(i)
 
-                filter_parts.append(
-                    f"[{last_label}][{sl}]overlay={pos}:format=auto[{ol}]"
-                )
-                last_label = ol
-
-        elif layer_mode == "overlay":
-            # ── OVERLAY MODE: Full screen stretch to match base exactly ──
-            for i in range(1, len(input_files)):
-                ext = os.path.splitext(input_files[i].lower())[1]
-                sl  = f"layer{i}s"
-                ol  = f"v{i}"
-
-                filter_parts.append(
-                    f"[{i}:v]scale=1920:1080[{sl}]"
-                )
-                filter_parts.append(
-                    f"[{last_label}][{sl}]overlay=0:0:format=auto[{ol}]"
-                )
+                if ext == ".mp4":
+                    # Apply screen blend logic (Convert to GBRP first to prevent chroma-shift)
+                    filter_parts.append(f"[{last_label}]format=gbrp[base_gbrp_{i}]")
+                    filter_parts.append(f"[{sl}]format=gbrp[{sl}_gbrp]")
+                    filter_parts.append(f"[base_gbrp_{i}][{sl}_gbrp]blend=all_mode=screen[{ol}]")
+                else:
+                    # Apply standard overlay logic (preserves alpha transparency)
+                    filter_parts.append(f"[{last_label}][{sl}]overlay=0:0:format=auto[{ol}]")
+                
                 last_label = ol
 
                 if ext in VIDEO_EXTS and has_audio_stream(input_files[i], ffmpeg_path):
                     audio_indices.append(i)
+
+            # Ensure final output is standard yuv420p for all players
+            filter_parts.append(f"[{last_label}]format=yuv420p[final_smart_out]")
+            last_label = "final_smart_out"
 
         else:
             # ── TILE MODE (default): quadrant tiling ──────────────────────
@@ -467,7 +424,6 @@ def execute_ffmpeg(implementation, instruction):
             f'-c:v libx264 -c:a aac {duration_flag} '
             f'"{output_file}"'
         )
-        print(f"\nMode: {layer_mode} | Position: {pip_pos} | Opacity: base={blend_w*100:.0f}% overlay={round(1-blend_w,4)*100:.0f}%")
         print(f"\nExecuting: {cmd}")
         subprocess.run(cmd, shell=True)
         return output_file
