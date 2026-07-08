@@ -102,7 +102,7 @@ MCP_REGISTRY = {
     },
     "video_layer": {
         "action": "video_layer",
-        "input": ["input_files", "layer_mode", "pip_position", "blend_opacity"],
+        "input": ["input_files", "layer_mode", "layer_positions"],
         "output": ["output_file"],
         "errors": ["file_not_found", "layer_failed"]
     },
