@@ -1,0 +1,33 @@
+$$$|||
+generate_subtitles
+generate subtitles for this video
+transcribe this video
+create english subtitles for video.mp4
+add captions to this video
+generate an srt file for this video
+translate this video's speech to english subtitles
+create hindi subtitles for this video
+
+$$$|||
+burn_subtitles
+burn subtitles onto this video
+add subtitle file to video
+hardcode the srt onto video.mp4
+embed captions into the video
+caption this video with an existing srt file
+
+$$$|||
+clip_by_keyword
+find every time someone says "dogecoin" in this video and clip it
+clip all the moments this word is mentioned
+find and clip every occurrence of a name in the video
+search the video for a keyword and give me clips of it
+give me clips of every time this phrase is spoken
+
+$$$|||
+clip_by_semantic
+find the part where he talks about pricing and clip it
+give me the clip about the market crash
+find the section discussing the new feature and cut it
+search this video for the part about the demo
+clip the moment they announce the winner

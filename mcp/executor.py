@@ -9,6 +9,7 @@ from engines.ffmpeg_engine import execute_ffmpeg
 from engines.youtube_engine import execute_youtube
 from engines.audacity_engine import execute_audacity
 from engines.insightface_engine import execute_insightface
+from engines.whisper_engine import execute_whisper
 
 
 ENGINE_DISPATCH = {
@@ -16,6 +17,7 @@ ENGINE_DISPATCH = {
     "yt_dlp": execute_youtube,
     "audacity": execute_audacity,
     "insightface": execute_insightface,
+    "whisper": execute_whisper,
 }
 
 
