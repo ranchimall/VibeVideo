@@ -25,7 +25,7 @@ VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".webm"}
 
 def scan_media_files(directory="."):
     """Scan current directory for media files and build working name mappings."""
-    extensions = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".mp3", ".wav", ".png", ".jpg", ".jpeg"}
+    extensions = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".mp3", ".wav", ".ogg", ".png", ".jpg", ".jpeg"}
     files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f)) and os.path.splitext(f.lower())[1] in extensions]
     files.sort(key=lambda x: x.lower())
     
@@ -47,14 +47,14 @@ def preprocess_query(query, mapping):
         return mapping.get(word, match.group(0))
         
     # Match pattern: f\d+ or file\d+ but not followed by dot and extension
-    query = re.sub(r'\b(file\d+|f\d+)\b(?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))', replace_func, query, flags=re.I)
+    query = re.sub(r'\b(file\d+|f\d+)\b(?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|ogg|png|jpg|jpeg))', replace_func, query, flags=re.I)
     
     # Match pattern: \[\d+\] but not followed by dot and extension
     def replace_bracket(match):
         bracketed = match.group(0)
         return mapping.get(bracketed, match.group(0))
         
-    query = re.sub(r'\[\d+\](?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))', replace_bracket, query)
+    query = re.sub(r'\[\d+\](?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|ogg|png|jpg|jpeg))', replace_bracket, query)
     
     return query
 
@@ -168,13 +168,13 @@ def parse_parameters(text):
 
     # extract all potential files
     # Match any non-whitespace filename ending with a supported extension
-    all_files = re.findall(r'\b([^\s]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))\b', text, re.I)
+    all_files = re.findall(r'\b([^\s]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|ogg|png|jpg|jpeg))\b', text, re.I)
 
     # check if merging/swapping/replacing
     is_merge = any(w in text.lower() for w in ["merge", "combine", "join", "concatenate", "concat", "swap", "replace", "mix"])
 
     # find output file (as/into/output)
-    m_out = re.search(r'\b(?:as|into|output)\s+([A-Za-z0-9_-]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))\b', text, re.I)
+    m_out = re.search(r'\b(?:as|into|output)\s+([A-Za-z0-9_-]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|ogg|png|jpg|jpeg))\b', text, re.I)
     if m_out:
         params["output_file"] = m_out.group(1)
         params["input_files"] = [f for f in all_files if f.lower() != params["output_file"].lower()]

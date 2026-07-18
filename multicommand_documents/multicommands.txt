@@ -53,3 +53,17 @@ delete_second_half
 delete the second half of the video
 remove the second half of this video
 cut off the ending half of the video
+
+$$$|||
+extract_audio
+Extract audio from a video
+Take audio from video
+Convert video to audio
+Save audio track from movie
+Extract audio
+Convert mp4 to mp3
+Convert a video to mp3
+Convert this video to an mp3 file
+Turn video into mp3
+
+$$$|||
