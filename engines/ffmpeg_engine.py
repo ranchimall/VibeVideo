@@ -157,6 +157,16 @@ def execute_ffmpeg(implementation, instruction):
         return output_file
         
     elif implementation == "video_merge":
+        if len(input_files) == 1:
+            # Nothing to actually merge (e.g. deleting only the very start
+            # or very end of a video leaves one surviving segment) -- just
+            # hand back that one clip, renamed to output_file if given.
+            only = input_files[0]
+            if output_file and os.path.abspath(output_file) != os.path.abspath(only):
+                import shutil
+                shutil.copy(only, output_file)
+                return output_file
+            return only
         if len(input_files) < 2: raise ValueError("Merge requires at least 2 input files.")
         output_file = output_file or "merged.mp4"
         transition = inp.get("transition")

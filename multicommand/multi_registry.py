@@ -198,4 +198,63 @@ MULTI_REGISTRY = {
             },
         ],
     },
+
+    "delete_time_ranges": {
+        "description": "Delete one or more time ranges from a video, keeping everything else, merged into one output video.",
+        "steps": [
+            {
+                "id": "keep",
+                "capability": "video_clip",
+                "repeat": {"over": "keep_segments", "on": "original_input"},
+                "params": {
+                    "input_files": {"source": "original_input"},
+                    "start_time": {"source": "repeat_value", "field": "start"},
+                    "end_time": {"source": "repeat_value", "field": "end"},
+                },
+                "output_file_template": "{base}_keep{index}{ext}",
+                "final": False,
+            },
+            {
+                "id": "merged",
+                "capability": "video_merge",
+                "params": {
+                    "input_files": {"source": "step_outputs", "steps": ["keep"]},
+                },
+                "output_file_template": "{base}_deleted{ext}",
+                "final": True,
+            },
+        ],
+    },
+
+    "delete_first_half": {
+        "description": "Delete the first half of a video, keeping only the second half.",
+        "steps": [
+            {
+                "id": "kept",
+                "capability": "video_clip",
+                "params": {
+                    "input_files": {"source": "original_input"},
+                    "start_time": {"source": "computed", "func": "midpoint", "on": "original_input"},
+                    "end_time": {"source": "computed", "func": "duration", "on": "original_input"},
+                },
+                "final": True,
+            },
+        ],
+    },
+
+    "delete_second_half": {
+        "description": "Delete the second half of a video, keeping only the first half.",
+        "steps": [
+            {
+                "id": "kept",
+                "capability": "video_clip",
+                "params": {
+                    "input_files": {"source": "original_input"},
+                    "start_time": {"source": "fixed", "value": 0},
+                    "end_time": {"source": "computed", "func": "midpoint", "on": "original_input"},
+                },
+                "final": True,
+            },
+        ],
+    },
 }    

@@ -102,7 +102,15 @@ def _run_step(step, ctx):
     capability = step["capability"]
 
     resolved = {key: _resolve_param(spec, ctx) for key, spec in step["params"].items()}
-    resolved["output_file"] = step.get("output_file")
+
+    if step.get("output_file_template"):
+        ref_video = ctx["original_input_files"][0] if ctx["original_input_files"] else None
+        resolved["output_file"] = (
+            _format_output_name(step["output_file_template"], ref_video, index=1, total=1)
+            if ref_video else None
+        )
+    else:
+        resolved["output_file"] = step.get("output_file")
 
     instruction = find_mcp_instruction(capability, resolved)
     tool = resolve_tool(instruction)

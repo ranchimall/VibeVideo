@@ -380,7 +380,13 @@ if __name__ == "__main__":
         # matcher (it looks a lot like "clip from A to B and caption it"),
         # so don't leave this to FAISS distance -- if the query names 2+
         # explicit "from X to Y" ranges, it can only mean multi_range_clip.
-        if count_time_ranges(processed_query) >= 2:
+        n_ranges = count_time_ranges(processed_query)
+        is_delete = bool(re.search(r'\b(delete|remove|cut out)\b', processed_query, re.I))
+
+        if is_delete and n_ranges >= 1:
+            multi_name, multi_distance = "delete_time_ranges", 0.0
+            print(f"\n[Tier 0] Detected delete intent with {n_ranges} range(s); routing directly to '{multi_name}'")
+        elif n_ranges >= 2:
             multi_name, multi_distance = "multi_range_clip", 0.0
             print(f"\n[Tier 0] Detected multiple time ranges; routing directly to '{multi_name}'")
         else:

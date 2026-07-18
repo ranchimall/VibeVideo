@@ -81,6 +81,53 @@ def parse_time_ranges(raw_query, video_path=None):
     return ranges
 
 
+def keep_segments(raw_query, video_path=None):
+    """The inverse of parse_time_ranges: given the 'from X to Y' ranges
+    to DELETE, return the ranges to KEEP (everything else), in order.
+    Used by delete_time_ranges to turn arbitrary deletion ranges into a
+    repeat step over the surviving segments."""
+    if video_path is None:
+        raise ValueError("Cannot compute keep segments without a reference video.")
+
+    delete_ranges = parse_time_ranges(raw_query, video_path)
+    if not delete_ranges:
+        raise ValueError("No 'from X to Y' ranges found to delete.")
+
+    total = duration(video_path)
+
+    def _to_seconds(v):
+        if isinstance(v, (int, float)):
+            return float(v)
+        parts = [float(p) for p in str(v).split(":")]
+        s = 0.0
+        for p in parts:
+            s = s * 60 + p
+        return s
+
+    ranges = sorted((_to_seconds(r["start"]), _to_seconds(r["end"])) for r in delete_ranges)
+
+    merged = []
+    for s, e in ranges:
+        if merged and s <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], e))
+        else:
+            merged.append((s, e))
+
+    keep, cursor = [], 0.0
+    for s, e in merged:
+        if s > cursor:
+            keep.append({"start": cursor, "end": s})
+        cursor = max(cursor, e)
+    if cursor < total:
+        keep.append({"start": cursor, "end": total})
+
+    if not keep:
+        raise ValueError("Deleting these ranges would remove the entire video -- nothing left to keep.")
+
+    return keep
+
+
 REPEAT_SOURCES = {
     "time_ranges": parse_time_ranges,
+    "keep_segments": keep_segments,
 }
