@@ -55,15 +55,10 @@ remove the second half of this video
 cut off the ending half of the video
 
 $$$|||
-extract_audio
-Extract audio from a video
-Take audio from video
-Convert video to audio
-Save audio track from movie
-Extract audio
-Convert mp4 to mp3
-Convert a video to mp3
-Convert this video to an mp3 file
-Turn video into mp3
-
-$$$|||
+youtube_to_mp3
+convert this youtube video to mp3 https://www.youtube.com/watch?v=dQw4w9WgXcQ
+download this youtube video and convert it to mp3
+give me the mp3 of this youtube video
+turn this youtube video into an mp3
+get the audio of this youtube video as mp3
+download and convert this youtube link to mp3

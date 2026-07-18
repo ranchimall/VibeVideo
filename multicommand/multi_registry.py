@@ -181,6 +181,32 @@ MULTI_REGISTRY = {
         ],
     },
 
+    "youtube_to_mp3": {
+        "description": "Download a YouTube video and convert it to an mp3 audio file.",
+        "steps": [
+            {
+                "id": "dl1",
+                "capability": "download_youtube",
+                "params": {
+                    "url": {
+                        "source": "regex",
+                        "pattern": r'(https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]+(?:[&?][^\s]*)?)',
+                        "group": 1,
+                    },
+                },
+                "final": False,
+            },
+            {
+                "id": "mp3_1",
+                "capability": "extract_audio",
+                "params": {
+                    "input_files": {"source": "step_output_list", "step": "dl1"},
+                },
+                "final": True,
+            },
+        ],
+    },
+
     "multi_range_clip": {
         "description": "Clip several separate time ranges out of one video, one output file per range.",
         "steps": [

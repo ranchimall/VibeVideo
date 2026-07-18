@@ -5,6 +5,13 @@ Take audio from video
 Convert video to audio
 Save audio track from movie
 Extract audio
+Convert mp4 to mp3
+Convert a video to mp3
+Give me the audio of this video
+Give me audio of 2140.mp4
+I just want the audio from this video
+Get the audio from this video
+Pull the audio out of this video
 
 $$$|||
 take_screenshot
