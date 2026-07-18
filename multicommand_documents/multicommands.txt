@@ -14,3 +14,12 @@ split this video into two halves, caption the first half in english and the seco
 divide the video in half and add english subtitles to the first part and hindi subtitles to the second part
 cut this video in two, english captions on one half and hindi captions on the other
 split my video in half with english subtitles on part one and hindi subtitles on part two
+
+$$$|||
+youtube_subtitles
+give me a subtitle of this youtube video https://www.youtube.com/watch?v=dQw4w9WgXcQ
+download this youtube video and give me subtitles
+transcribe this youtube video
+get me subtitles for this youtube link
+give me an srt for this youtube video
+download and subtitle this youtube video

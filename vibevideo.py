@@ -337,12 +337,33 @@ if __name__ == "__main__":
             print(f"Error: Media directory '{args.media_dir}' does not exist.")
             sys.exit(1)
 
+    MEDIA_DIR_LABEL = os.path.basename(os.path.normpath(args.media_dir))
+
+    def display_path(path):
+        """Show paths rooted at the media folder name (e.g.
+        'sample_media/whisper_output/x.srt') instead of a bare filename,
+        so it's unambiguous where a generated file actually landed."""
+        if not path:
+            return path
+        if os.path.isabs(path):
+            return path
+        return (MEDIA_DIR_LABEL + "/" + path).replace("\\", "/")
+    
+    last_outputs = []
+
     while True:
         media_files, file_mapping = scan_media_files()
         if media_files:
             print(f"\nAvailable files in {args.media_dir}:")
             for idx, f in enumerate(media_files, start=1):
                 print(f"  [{idx}] {f}")
+
+        if last_outputs:
+            print(f"\nNew outputs:")
+            for out in last_outputs:
+                print(f"  {display_path(out)}")
+            last_outputs = []
+        
         
         query = input("\nCommand: ")
 
@@ -359,18 +380,17 @@ if __name__ == "__main__":
             print(f"\n[Tier 1] Matched multicommand '{multi_name}' (distance={multi_distance:.3f})")
  
             input_files = resolve_multicommand_input_files(processed_query, media_files)
-            if not input_files:
-                print("Could not determine which video this multicommand should run on. "
-                      "Try naming the file explicitly (e.g. file1, f1, or [1]).")
-                continue
+            # Not every multicommand needs a local video -- e.g. one that
+            # starts by downloading from YouTube. So we don't hard-abort
+            # here. If a step actually needs "original_input" and none was
+            # found, execute_multicommand already raises a clear error for
+            # that specific case (see _resolve_file_ref in multi_executor.py).
  
             try:
                 outputs = execute_multicommand(multi_name, processed_query, input_files)
-                print(f"\n[multicommand] Done. Final output(s):")
-                for out in outputs:
-                    print(f"  - {out}")
+                last_outputs = [o for o in outputs if o]
             except Exception as e:
-                print(f"\nError running multicommand '{multi_name}': {e}")
+                print(f"\nError running multicommand '{multi_name}': {e}")    
             continue
  
         if multi_distance is not None:
@@ -403,7 +423,9 @@ if __name__ == "__main__":
         print(tool)
 
         try:
-            execute_tool_instruction(tool, instruction)
+            result = execute_tool_instruction(tool, instruction)
+            outputs = result if isinstance(result, list) else [result]
+            last_outputs = [o for o in outputs if o]
         except Exception as e:
             print(f"\nError running '{capability}': {e}")
 

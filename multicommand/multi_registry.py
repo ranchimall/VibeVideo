@@ -154,4 +154,30 @@ MULTI_REGISTRY = {
         ],
     },
 
-}
+
+"youtube_subtitles": {
+        "description": "Download a YouTube video and generate subtitles for it.",
+        "steps": [
+            {
+                "id": "dl1",
+                "capability": "download_youtube",
+                "params": {
+                    "url": {
+                        "source": "regex",
+                        "pattern": r'(https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]+(?:[&?][^\s]*)?)',
+                        "group": 1,
+                    },
+                },
+                "final": True,
+            },
+            {
+                "id": "sub1",
+                "capability": "generate_subtitles",
+                "params": {
+                    "input_files": {"source": "step_output_list", "step": "dl1"},
+                },
+                "final": True,
+            },
+        ],
+    },
+}    
