@@ -62,3 +62,7 @@ give me the mp3 of this youtube video
 turn this youtube video into an mp3
 get the audio of this youtube video as mp3
 download and convert this youtube link to mp3
+give me audio of https://www.youtube.com/watch?v=dQw4w9WgXcQ
+give me the audio of this youtube video
+download the audio from this youtube video
+extract audio from this youtube link

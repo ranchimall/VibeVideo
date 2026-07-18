@@ -21,6 +21,7 @@ print("CWD:", os.getcwd())
 # path to ffmpeg binary
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 MULTICOMMAND_MAX_DISTANCE = 0.9
+YOUTUBE_URL_PATTERN = r'(https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]+(?:[&?][^\s]*)?)'
 VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".webm"}
 
 def scan_media_files(directory="."):
@@ -145,10 +146,7 @@ def parse_parameters(text):
         params["fps"] = int(m.group(1))
 
     # youtube url
-    m_url = re.search(
-        r'(https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]+(?:[&?][^\s]*)?)',
-        text
-    )
+    m_url = re.search(YOUTUBE_URL_PATTERN, text)
     if m_url:
         params["url"] = m_url.group(1)
 
@@ -380,10 +378,17 @@ if __name__ == "__main__":
         # matcher (it looks a lot like "clip from A to B and caption it"),
         # so don't leave this to FAISS distance -- if the query names 2+
         # explicit "from X to Y" ranges, it can only mean multi_range_clip.
+        has_youtube_url = bool(re.search(YOUTUBE_URL_PATTERN, processed_query, re.I))
+        wants_audio_only = bool(re.search(r'\b(mp3|audio)\b', processed_query, re.I))
+        wants_video = bool(re.search(r'\b(video|subtitle|caption|srt)\b', processed_query, re.I))
+
         n_ranges = count_time_ranges(processed_query)
         is_delete = bool(re.search(r'\b(delete|remove|cut out)\b', processed_query, re.I))
 
-        if is_delete and n_ranges >= 1:
+        if has_youtube_url and wants_audio_only and not wants_video:
+            multi_name, multi_distance = "youtube_to_mp3", 0.0
+            print(f"\n[Tier 0] Detected youtube URL + audio-only request; routing directly to '{multi_name}'")
+        elif is_delete and n_ranges >= 1:
             multi_name, multi_distance = "delete_time_ranges", 0.0
             print(f"\n[Tier 0] Detected delete intent with {n_ranges} range(s); routing directly to '{multi_name}'")
         elif n_ranges >= 2:
