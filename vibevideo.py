@@ -13,6 +13,7 @@ from mcp.capability_resolver import resolve_tool
 from engines.ffmpeg_engine import execute_ffmpeg
 from mcp.executor import execute as execute_tool_instruction
 from multicommand.multi_executor import execute_multicommand
+from multicommand.multi_helpers import count_time_ranges
 
 print("Python:", sys.executable)
 print("CWD:", os.getcwd())
@@ -374,8 +375,18 @@ if __name__ == "__main__":
         if processed_query != query:
             print(f"Translated: {processed_query}")
 
-        # --- Tier 1: check registered multicommands first ---
-        multi_name, multi_distance = search_multicommands(processed_query)
+        # --- Tier 0: deterministic override for multi-range clipping ---
+        # "clip from A to B and from C to D" is ambiguous for a semantic
+        # matcher (it looks a lot like "clip from A to B and caption it"),
+        # so don't leave this to FAISS distance -- if the query names 2+
+        # explicit "from X to Y" ranges, it can only mean multi_range_clip.
+        if count_time_ranges(processed_query) >= 2:
+            multi_name, multi_distance = "multi_range_clip", 0.0
+            print(f"\n[Tier 0] Detected multiple time ranges; routing directly to '{multi_name}'")
+        else:
+            # --- Tier 1: check registered multicommands first ---
+            multi_name, multi_distance = search_multicommands(processed_query)
+
         if multi_name is not None and multi_distance < MULTICOMMAND_MAX_DISTANCE:
             print(f"\n[Tier 1] Matched multicommand '{multi_name}' (distance={multi_distance:.3f})")
  

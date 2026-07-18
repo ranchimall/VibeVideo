@@ -155,7 +155,7 @@ MULTI_REGISTRY = {
     },
 
 
-"youtube_subtitles": {
+    "youtube_subtitles": {
         "description": "Download a YouTube video and generate subtitles for it.",
         "steps": [
             {
@@ -176,6 +176,24 @@ MULTI_REGISTRY = {
                 "params": {
                     "input_files": {"source": "step_output_list", "step": "dl1"},
                 },
+                "final": True,
+            },
+        ],
+    },
+
+    "multi_range_clip": {
+        "description": "Clip several separate time ranges out of one video, one output file per range.",
+        "steps": [
+            {
+                "id": "ranges",
+                "capability": "video_clip",
+                "repeat": {"over": "time_ranges", "on": "original_input"},
+                "params": {
+                    "input_files": {"source": "original_input"},
+                    "start_time": {"source": "repeat_value", "field": "start"},
+                    "end_time": {"source": "repeat_value", "field": "end"},
+                },
+                "output_file_template": "{base}_clip{index}{ext}",
                 "final": True,
             },
         ],

@@ -23,3 +23,14 @@ transcribe this youtube video
 get me subtitles for this youtube link
 give me an srt for this youtube video
 download and subtitle this youtube video
+
+$$$|||
+multi_range_clip
+clip this video from 00:00 to 00:07 and from 01:40 to the end
+clip out two parts of this video, 0:00 to 0:07 and 1:40 to the end
+cut this video from 10 to 20 seconds and from 40 to 50 seconds
+give me two clips, one from 5 to 15 seconds and another from 30 to 45 seconds
+clip multiple parts of this video into separate files
+cut several segments out of this video at different time ranges
+extract the part from 1:00 to 2:00 and the part from 5:00 to the end as separate clips
+clip from 0:00 to 0:30 and from 1:00 to 1:30 and from 2:00 to the end
