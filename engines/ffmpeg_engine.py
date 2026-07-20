@@ -32,6 +32,23 @@ def has_audio_stream(filepath, ffmpeg_path):
     result = subprocess.run(cmd, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
     return "Audio:" in result.stderr
 
+def _parse_time_to_seconds(value):
+    """Convert a start/end time value -- an int/float already in seconds,
+    or a string like "25", "1:40", "00:01:40.5" -- into float seconds.
+    Returns None if value is None."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    parts = str(value).strip().split(":")
+    try:
+        parts = [float(p) for p in parts]
+    except ValueError:
+        raise ValueError(f"Invalid time value: {value!r}")
+    seconds = 0.0
+    for p in parts:
+        seconds = seconds * 60 + p
+    return seconds
 
 FFMPEG_COMMANDS = {
     "extract_audio": '"{ffmpeg_path}" -y -i "{input_file}" -vn -c:a libmp3lame "{output_file}"',
@@ -113,12 +130,25 @@ def execute_ffmpeg(implementation, instruction):
         start_time = inp.get("start_time")
         end_time = inp.get("end_time")
         duration = inp.get("duration")
-        
+
+        # Prefer an explicit duration; otherwise derive one from start/end.
+        # We deliberately end up using -t (duration) rather than -to
+        # (absolute end timestamp): -ss below is an INPUT option (fast,
+        # keyframe-based seek), and pairing that with an output-side -to
+        # measures the end against the ORIGINAL, un-seeked timeline. If
+        # -ss snaps back to the nearest earlier keyframe, the clip ends up
+        # longer than requested. -t is always relative to wherever the
+        # seek actually landed, so it doesn't have this problem.
+        if duration is None and start_time is not None and end_time is not None:
+            duration = _parse_time_to_seconds(end_time) - _parse_time_to_seconds(start_time)
+            if duration <= 0:
+                raise ValueError(f"end_time ({end_time}) must be after start_time ({start_time}).")
+
         seek_opts = []
         if start_time is not None: seek_opts.extend(["-ss", str(start_time)])
         seek_opts.extend(["-i", f'"{input_file}"'])
-        if end_time is not None: seek_opts.extend(["-to", str(end_time)])
-        elif duration is not None: seek_opts.extend(["-t", str(duration)])
+        if duration is not None: seek_opts.extend(["-t", str(duration)])
+        elif end_time is not None: seek_opts.extend(["-to", str(end_time)])
             
         cmd_parts = [f'"{ffmpeg_path}"', "-y"] + seek_opts + ["-c:v", "libx264", "-c:a", "aac", f'"{output_file}"']
         cmd = " ".join(cmd_parts)
@@ -127,6 +157,16 @@ def execute_ffmpeg(implementation, instruction):
         return output_file
         
     elif implementation == "video_merge":
+        if len(input_files) == 1:
+            # Nothing to actually merge (e.g. deleting only the very start
+            # or very end of a video leaves one surviving segment) -- just
+            # hand back that one clip, renamed to output_file if given.
+            only = input_files[0]
+            if output_file and os.path.abspath(output_file) != os.path.abspath(only):
+                import shutil
+                shutil.copy(only, output_file)
+                return output_file
+            return only
         if len(input_files) < 2: raise ValueError("Merge requires at least 2 input files.")
         output_file = output_file or "merged.mp4"
         transition = inp.get("transition")

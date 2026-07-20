@@ -13,16 +13,21 @@ from mcp.capability_resolver import resolve_tool
 from engines.ffmpeg_engine import execute_ffmpeg
 from mcp.executor import execute as execute_tool_instruction
 from mcp.chroma_store import seed_collections, load_all_chunks
+from multicommand.multi_executor import execute_multicommand
+from multicommand.multi_helpers import count_time_ranges
 
 print("Python:", sys.executable)
 print("CWD:", os.getcwd())
 
 # path to ffmpeg binary
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+MULTICOMMAND_MAX_DISTANCE = 0.9
+YOUTUBE_URL_PATTERN = r'(https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]+(?:[&?][^\s]*)?)'
+VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".webm"}
 
 def scan_media_files(directory="."):
     """Scan current directory for media files and build working name mappings."""
-    extensions = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".mp3", ".wav", ".png", ".jpg", ".jpeg"}
+    extensions = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".mp3", ".wav", ".ogg", ".png", ".jpg", ".jpeg"}
     files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f)) and os.path.splitext(f.lower())[1] in extensions]
     files.sort(key=lambda x: x.lower())
     
@@ -44,14 +49,14 @@ def preprocess_query(query, mapping):
         return mapping.get(word, match.group(0))
         
     # Match pattern: f\d+ or file\d+ but not followed by dot and extension
-    query = re.sub(r'\b(file\d+|f\d+)\b(?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))', replace_func, query, flags=re.I)
+    query = re.sub(r'\b(file\d+|f\d+)\b(?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|ogg|png|jpg|jpeg))', replace_func, query, flags=re.I)
     
     # Match pattern: \[\d+\] but not followed by dot and extension
     def replace_bracket(match):
         bracketed = match.group(0)
         return mapping.get(bracketed, match.group(0))
         
-    query = re.sub(r'\[\d+\](?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))', replace_bracket, query)
+    query = re.sub(r'\[\d+\](?!\s*\.(?:mp4|mkv|avi|mov|webm|mp3|wav|ogg|png|jpg|jpeg))', replace_bracket, query)
     
     return query
 
@@ -62,7 +67,6 @@ print("Loading embedding model...")
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 # Seed ChromaDB from documents/*.txt (no-op if already done)
 print("Initialising ChromaDB...")
 seed_collections()
@@ -71,16 +75,47 @@ seed_collections()
 chunks = load_all_chunks()
 
 texts = [chunk["text"] for chunk in chunks]
-
 embeddings = model.encode(texts)
-
 dimension = embeddings.shape[1]
-
 index = faiss.IndexFlatL2(dimension)
-
 index.add(np.array(embeddings).astype("float32"))
-
 print(f"FAISS index ready ({len(chunks)} entries from ChromaDB).\n")
+
+multicommand_documents_folder = os.path.join(BASE_DIR, "multicommand_documents")
+ 
+def build_faiss_index(folder):
+    from pathlib import Path
+    multi_chunks = []
+    if os.path.isdir(folder):
+        for file in Path(folder).glob("*.txt"):
+            with open(file, "r", encoding="utf-8") as f:
+                text = f.read()
+ 
+            sections = text.split("$$$|||")
+ 
+            for section in sections:
+                section = section.strip()
+                if section:
+                    multi_chunks.append({
+                        "filename": file.name,
+                        "text": section
+                    })
+ 
+    if not multi_chunks:
+        return multi_chunks, None
+ 
+    multi_texts = [c["text"] for c in multi_chunks]
+    multi_embeddings = model.encode(multi_texts)
+    multi_dimension = multi_embeddings.shape[1]
+    multi_idx = faiss.IndexFlatL2(multi_dimension)
+    multi_idx.add(np.array(multi_embeddings).astype("float32"))
+    return multi_chunks, multi_idx
+ 
+multi_chunks, multi_index = build_faiss_index(multicommand_documents_folder)
+if multi_index is not None:
+    print(f"FAISS index ready (multicommands, {len(multi_chunks)} registered phrasing(s)).\n")
+else:
+    print("No multicommands registered yet (multicommand_documents/ is empty).\n")
 
 # extract parameters from query
 
@@ -132,10 +167,7 @@ def parse_parameters(text):
         params["fps"] = int(m.group(1))
 
     # youtube url
-    m_url = re.search(
-        r'(https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtube\.com/shorts/|youtu\.be/)[A-Za-z0-9_-]+(?:[&?][^\s]*)?)',
-        text
-    )
+    m_url = re.search(YOUTUBE_URL_PATTERN, text)
     if m_url:
         params["url"] = m_url.group(1)
 
@@ -155,13 +187,13 @@ def parse_parameters(text):
 
     # extract all potential files
     # Match any non-whitespace filename ending with a supported extension
-    all_files = re.findall(r'\b([^\s]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))\b', text, re.I)
+    all_files = re.findall(r'\b([^\s]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|ogg|png|jpg|jpeg))\b', text, re.I)
 
     # check if merging/swapping/replacing
     is_merge = any(w in text.lower() for w in ["merge", "combine", "join", "concatenate", "concat", "swap", "replace", "mix"])
 
     # find output file (as/into/output)
-    m_out = re.search(r'\b(?:as|into|output)\s+([A-Za-z0-9_-]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|png|jpg|jpeg))\b', text, re.I)
+    m_out = re.search(r'\b(?:as|into|output)\s+([A-Za-z0-9_-]+\.(?:mp4|mkv|avi|mov|webm|mp3|wav|ogg|png|jpg|jpeg))\b', text, re.I)
     if m_out:
         params["output_file"] = m_out.group(1)
         params["input_files"] = [f for f in all_files if f.lower() != params["output_file"].lower()]
@@ -306,6 +338,41 @@ def search_documents(query):
 
     return best_chunk, distances[0][0]
 
+def search_multicommands(query):
+    """Tier 1 lookup: embed the query and search the multicommand-only
+    FAISS index. Returns (name, distance) or (None, None) if no
+    multicommands are registered."""
+    if multi_index is None:
+        return None, None
+ 
+    query_embedding = model.encode([query])
+    distances, indices = multi_index.search(
+        np.array(query_embedding).astype("float32"),
+        1
+    )
+ 
+    best_chunk = multi_chunks[indices[0][0]]
+    name = best_chunk["text"].split("\n")[0].strip()
+    return name, distances[0][0]
+
+def resolve_multicommand_input_files(query, media_files):
+    """Figure out which video the multicommand should run on. Reuses the
+    same filename parsing as single commands, then falls back to 'the
+    one video in the working directory' if the query didn't name one."""
+    params = parse_parameters(query)
+    input_files = list(params["input_files"])
+ 
+    if not input_files and params["output_file"]:
+        # e.g. query only mentioned one filename and it got parsed as output
+        input_files = [params["output_file"]]
+ 
+    if not input_files:
+        video_candidates = [f for f in media_files if os.path.splitext(f.lower())[1] in VIDEO_EXTS]
+        if len(video_candidates) == 1:
+            input_files = [video_candidates[0]]
+ 
+    return input_files    
+
 
 # --- CLI Prompt Loop ---
 
@@ -322,12 +389,33 @@ if __name__ == "__main__":
             print(f"Error: Media directory '{args.media_dir}' does not exist.")
             sys.exit(1)
 
+    MEDIA_DIR_LABEL = os.path.basename(os.path.normpath(args.media_dir))
+
+    def display_path(path):
+        """Show paths rooted at the media folder name (e.g.
+        'sample_media/whisper_output/x.srt') instead of a bare filename,
+        so it's unambiguous where a generated file actually landed."""
+        if not path:
+            return path
+        if os.path.isabs(path):
+            return path
+        return (MEDIA_DIR_LABEL + "/" + path).replace("\\", "/")
+    
+    last_outputs = []
+
     while True:
         media_files, file_mapping = scan_media_files()
         if media_files:
             print(f"\nAvailable files in {args.media_dir}:")
             for idx, f in enumerate(media_files, start=1):
                 print(f"  [{idx}] {f}")
+
+        if last_outputs:
+            print(f"\nNew outputs:")
+            for out in last_outputs:
+                print(f"  {display_path(out)}")
+            last_outputs = []
+        
         
         query = input("\nCommand: ")
 
@@ -338,6 +426,53 @@ if __name__ == "__main__":
         if processed_query != query:
             print(f"Translated: {processed_query}")
 
+        # --- Tier 0: deterministic override for multi-range clipping ---
+        # "clip from A to B and from C to D" is ambiguous for a semantic
+        # matcher (it looks a lot like "clip from A to B and caption it"),
+        # so don't leave this to FAISS distance -- if the query names 2+
+        # explicit "from X to Y" ranges, it can only mean multi_range_clip.
+        has_youtube_url = bool(re.search(YOUTUBE_URL_PATTERN, processed_query, re.I))
+        wants_audio_only = bool(re.search(r'\b(mp3|audio)\b', processed_query, re.I))
+        wants_video = bool(re.search(r'\b(video|subtitle|caption|srt)\b', processed_query, re.I))
+
+        n_ranges = count_time_ranges(processed_query)
+        is_delete = bool(re.search(r'\b(delete|remove|cut out)\b', processed_query, re.I))
+
+        if has_youtube_url and wants_audio_only and not wants_video:
+            multi_name, multi_distance = "youtube_to_mp3", 0.0
+            print(f"\n[Tier 0] Detected youtube URL + audio-only request; routing directly to '{multi_name}'")
+        elif is_delete and n_ranges >= 1:
+            multi_name, multi_distance = "delete_time_ranges", 0.0
+            print(f"\n[Tier 0] Detected delete intent with {n_ranges} range(s); routing directly to '{multi_name}'")
+        elif n_ranges >= 2:
+            multi_name, multi_distance = "multi_range_clip", 0.0
+            print(f"\n[Tier 0] Detected multiple time ranges; routing directly to '{multi_name}'")
+        else:
+            # --- Tier 1: check registered multicommands first ---
+            multi_name, multi_distance = search_multicommands(processed_query)
+
+        if multi_name is not None and multi_distance < MULTICOMMAND_MAX_DISTANCE:
+            print(f"\n[Tier 1] Matched multicommand '{multi_name}' (distance={multi_distance:.3f})")
+ 
+            input_files = resolve_multicommand_input_files(processed_query, media_files)
+            # Not every multicommand needs a local video -- e.g. one that
+            # starts by downloading from YouTube. So we don't hard-abort
+            # here. If a step actually needs "original_input" and none was
+            # found, execute_multicommand already raises a clear error for
+            # that specific case (see _resolve_file_ref in multi_executor.py).
+ 
+            try:
+                outputs = execute_multicommand(multi_name, processed_query, input_files)
+                last_outputs = [o for o in outputs if o]
+            except Exception as e:
+                print(f"\nError running multicommand '{multi_name}': {e}")    
+            continue
+ 
+        if multi_distance is not None:
+            print(f"[Tier 1] No confident multicommand match (best='{multi_name}', distance={multi_distance:.3f}); falling back to single command.")    
+
+        
+        # --- Single-capability path (unchanged) ---
         chunk, distance = search_documents(processed_query)
         lines = chunk["text"].split("\n")
         
@@ -363,7 +498,9 @@ if __name__ == "__main__":
         print(tool)
 
         try:
-            execute_tool_instruction(tool, instruction)
+            result = execute_tool_instruction(tool, instruction)
+            outputs = result if isinstance(result, list) else [result]
+            last_outputs = [o for o in outputs if o]
         except Exception as e:
             print(f"\nError running '{capability}': {e}")
 

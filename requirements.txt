@@ -9,3 +9,5 @@ yt-dlp
 chromadb
 easyocr
 Pillow
+openai-whisper
+soundfile

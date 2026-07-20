@@ -52,6 +52,10 @@ COLLECTION_MAP = {
     ],
     "ai_tools": [
         "face_swap_video",
+        "generate_subtitles",
+        "burn_subtitles",
+        "clip_by_keyword",
+        "clip_by_semantic",
     ],
     "web_tools": [
         "download_youtube",

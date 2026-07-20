@@ -73,7 +73,7 @@ def download_video(url, output_dir=".", quality=None):
     safe_name = f"{safe_base}{ext}"
     safe_path = os.path.join(os.path.dirname(filename), safe_name)
     if safe_path != filename:
-        os.rename(filename, safe_path)
+        os.replace(filename, safe_path)
     return safe_path
 
 

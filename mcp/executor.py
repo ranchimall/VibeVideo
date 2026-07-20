@@ -10,6 +10,7 @@ from engines.youtube_engine import execute_youtube
 from engines.audacity_engine import execute_audacity
 from engines.insightface_engine import execute_insightface
 from engines.cv_text_engine import execute_cv
+from engines.whisper_engine import execute_whisper
 
 
 ENGINE_DISPATCH = {
@@ -18,6 +19,7 @@ ENGINE_DISPATCH = {
     "audacity": execute_audacity,
     "insightface": execute_insightface,
     "cv": execute_cv,
+    "whisper": execute_whisper,
 }
 
 

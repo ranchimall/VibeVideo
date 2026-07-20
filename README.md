@@ -105,6 +105,11 @@ The table below summarizes the natural language commands supported. On first sta
 | **`audio_visual`** | `generate waveform video for f2.mp3`, `generate spectrogram image of f2` | `input_files`, `output_file`, `visual_type` | Waveform video (`.mp4`) or Spectrogram image (`.png`) | Core FFmpeg |
 | **`audio_normalize`**| `normalize audio f2.mp3`, `normalize loudness of f2` | `input_files`, `output_file` | Audio file with normalized volume (default: `<input>_normalized.<ext>`) | Audacity (App must be running) |
 | **`download_youtube`**| `download a youtube video`, `download youtube link` | `url`, `quality`, `start_time`, `end_time` | Downloaded YouTube video clip (default: `<video_title>.mp4`) | yt-dlp |
+| **`video_replace_text`**| `change "OldText" to "NewText" in video.mp4` | `input_files`, `output_file`, `old_text`, `new_text` | Video with replaced on-screen text (default: `replaced_output.mp4`) | EasyOCR, OpenCV |
+| **`generate_subtitles`**| `generate subtitles for this video`, `transcribe this video` | `input_files`, `output_file`, `language` | Standalone .srt subtitle file (default: `<input>_transcribe.srt`) | Whisper |
+| **`burn_subtitles`**| `burn subtitles onto this video`, `hardcode the srt onto video.mp4` | `input_files` (requires video & .srt), `output_file` | Video with hardcoded subtitles (default: `<input>_captioned.mp4`) | Whisper, Core FFmpeg |
+| **`clip_by_keyword`**| `find every time someone says "hello" and clip it` | `input_files`, `output_file`, `search_query` | Merged video clips containing the keyword (default: `<input>_clip.mp4`) | Whisper |
+| **`clip_by_semantic`**| `find the part where he talks about pricing and clip it` | `input_files`, `output_file`, `search_query` | The video segment matching the semantic query (default: `<input>_clip.mp4`) | Whisper, FAISS |
 
 ---
 

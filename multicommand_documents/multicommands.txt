@@ -1,0 +1,68 @@
+$$$|||
+subtitle_and_clip
+from 01:00 to 03:00 add english subtitle on the video and give me the clip
+clip the video from 1:00 to 3:00 and add english subtitles
+give me an english subtitled clip from 1 minute to 3 minutes
+cut this video between 01:00 and 03:00 and burn english captions onto it
+trim and caption this video in english
+clip from 30 to 90 seconds and put english subtitles on it
+
+$$$|||
+split_dual_subtitle
+split in half this video, give english subtitle for the first half and hindi subtitle for the second half and give me both videos
+split this video into two halves, caption the first half in english and the second half in hindi
+divide the video in half and add english subtitles to the first part and hindi subtitles to the second part
+cut this video in two, english captions on one half and hindi captions on the other
+split my video in half with english subtitles on part one and hindi subtitles on part two
+
+$$$|||
+youtube_subtitles
+give me a subtitle of this youtube video https://www.youtube.com/watch?v=dQw4w9WgXcQ
+download this youtube video and give me subtitles
+transcribe this youtube video
+get me subtitles for this youtube link
+give me an srt for this youtube video
+download and subtitle this youtube video
+
+$$$|||
+multi_range_clip
+clip this video from 00:00 to 00:07 and from 01:40 to the end
+clip out two parts of this video, 0:00 to 0:07 and 1:40 to the end
+cut this video from 10 to 20 seconds and from 40 to 50 seconds
+give me two clips, one from 5 to 15 seconds and another from 30 to 45 seconds
+clip multiple parts of this video into separate files
+cut several segments out of this video at different time ranges
+extract the part from 1:00 to 2:00 and the part from 5:00 to the end as separate clips
+clip from 0:00 to 0:30 and from 1:00 to 1:30 and from 2:00 to the end
+
+$$$|||
+delete_time_ranges
+delete from 00:00 to 01:00 of vid.mp4
+remove the part from 2:00 to 3:30 from this video
+cut out from 0:10 to 0:45 and give me the rest
+delete this section of the video
+
+$$$|||
+delete_first_half
+delete the first half of the video
+remove the first half of this video and give me the rest
+cut out the beginning half of the video
+
+$$$|||
+delete_second_half
+delete the second half of the video
+remove the second half of this video
+cut off the ending half of the video
+
+$$$|||
+youtube_to_mp3
+convert this youtube video to mp3 https://www.youtube.com/watch?v=dQw4w9WgXcQ
+download this youtube video and convert it to mp3
+give me the mp3 of this youtube video
+turn this youtube video into an mp3
+get the audio of this youtube video as mp3
+download and convert this youtube link to mp3
+give me audio of https://www.youtube.com/watch?v=dQw4w9WgXcQ
+give me the audio of this youtube video
+download the audio from this youtube video
+extract audio from this youtube link

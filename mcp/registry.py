@@ -161,4 +161,29 @@ MCP_REGISTRY = {
         "output": ["output_file"],
         "errors": ["file_not_found"]
     },
+
+    "generate_subtitles": {
+        "action": "generate_subtitles",
+        "input": ["input_files", "language", "task", "model"],
+        "output": ["output_file"],
+        "errors": ["file_not_found", "transcription_failed"]
+    },
+    "burn_subtitles": {
+        "action": "burn_subtitles",
+        "input": ["input_files"],
+        "output": ["output_file"],
+        "errors": ["file_not_found", "burn_failed"]
+    },
+    "clip_by_keyword": {
+        "action": "clip_by_keyword",
+        "input": ["input_files", "search_query", "context", "language", "model"],
+        "output": ["output_file"],
+        "errors": ["file_not_found", "no_match_found"]
+    },
+    "clip_by_semantic": {
+        "action": "clip_by_semantic",
+        "input": ["input_files", "search_query", "pick", "language", "model"],
+        "output": ["output_file"],
+        "errors": ["file_not_found", "no_match_found"]
+    },
 }

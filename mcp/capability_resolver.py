@@ -61,7 +61,11 @@ CAPABILITY_TOOL_MAP = {
     "audio_speed": {"tool": "ffmpeg", "implementation": "audio_speed"},
     "audio_reverse": {"tool": "ffmpeg", "implementation": "audio_reverse"},
     "audio_replace": {"tool": "ffmpeg", "implementation": "audio_replace"},
-    "audio_visual": {"tool": "ffmpeg", "implementation": "audio_visual"}
+    "audio_visual": {"tool": "ffmpeg", "implementation": "audio_visual"},
+    "generate_subtitles": {"tool": "whisper", "implementation": "generate_subtitles"},
+    "burn_subtitles": {"tool": "whisper", "implementation": "burn_subtitles"},
+    "clip_by_keyword": {"tool": "whisper", "implementation": "clip_by_keyword"},
+    "clip_by_semantic": {"tool": "whisper", "implementation": "clip_by_semantic"},
 
 }
 
