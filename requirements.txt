@@ -7,3 +7,5 @@ onnxruntime
 opencv-python
 yt-dlp
 chromadb
+easyocr
+Pillow

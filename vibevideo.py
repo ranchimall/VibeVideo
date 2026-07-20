@@ -105,8 +105,17 @@ def parse_parameters(text):
         "url": None,
         "quality": None,
         "delete_full": False,
-        "layer_mode": "tile",     # tile | pip | blend | overlay
+        "layer_mode": "tile",     # tile | overlay
+        "old_text": None,
+        "new_text": None,
     }
+
+    # Text Replacement (e.g. "change X to Y" or "replace X with Y")
+    # Matches: change theFLOblockchain to FLO Blockchain in video.mp4
+    m_text = re.search(r'\b(?:change|replace)\s+[\'"]?(.+?)[\'"]?\s+(?:to|with)\s+[\'"]?(.+?)[\'"]?(?:\s+(?:in|on|for|from|as))', text, re.I)
+    if m_text:
+        params["old_text"] = m_text.group(1).strip()
+        params["new_text"] = m_text.group(2).strip()
 
     # layer_mode: overlay | tile (default)
     if re.search(r'\b(overlay|full.?screen|on top|screen|vfx|pip|picture.in.picture|corner|inset|small|miniature|blend|ghost|mix|transparent|opacity|see.?through)\b', text, re.I):
@@ -124,7 +133,7 @@ def parse_parameters(text):
 
     # youtube url
     m_url = re.search(
-        r'(https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)[A-Za-z0-9_-]+(?:[&?][^\s]*)?)',
+        r'(https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtube\.com/shorts/|youtu\.be/)[A-Za-z0-9_-]+(?:[&?][^\s]*)?)',
         text
     )
     if m_url:

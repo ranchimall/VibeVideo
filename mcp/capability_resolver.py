@@ -53,6 +53,7 @@ CAPABILITY_TOOL_MAP = {
     "video_clip": {"tool": "ffmpeg", "implementation": "video_clip"},
     "video_merge": {"tool": "ffmpeg", "implementation": "video_merge"},
     "video_layer": {"tool": "ffmpeg", "implementation": "video_layer"},
+    "video_replace_text": {"tool": "cv", "implementation": "video_replace_text"},
     "audio_trim": {"tool": "ffmpeg", "implementation": "audio_trim"},
     "audio_volume": {"tool": "ffmpeg", "implementation": "audio_volume"},
     "audio_fade": {"tool": "ffmpeg", "implementation": "audio_fade"},

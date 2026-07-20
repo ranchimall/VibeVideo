@@ -63,6 +63,13 @@ MCP_REGISTRY = {
         ]
     },
 
+    "video_replace_text": {
+        "action": "video_replace_text",
+        "input": ["input_files", "old_text", "new_text"],
+        "output": ["output_file"],
+        "errors": ["file_not_found", "ocr_failed", "inpainting_failed"]
+    },
+
     "face_swap_video": {
         "action": "face_swap_video",
         "input": [

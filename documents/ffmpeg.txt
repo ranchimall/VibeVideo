@@ -127,3 +127,8 @@ generate waveform video for song.mp3
 generate spectrogram image of audio
 create audio visualizer waveform
 
+$$$|||
+video_replace_text
+change theFLOblockchain to FLO Blockchain in video.mp4
+replace text X with Y in myvideo.mp4
+replace moving text inside video
