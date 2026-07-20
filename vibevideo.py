@@ -140,7 +140,7 @@ def parse_parameters(text):
         "url": None,
         "quality": None,
         "delete_full": False,
-        "layer_mode": "tile",     # tile | overlay
+        "layer_mode": "tile",     # tile | pip | blend | overlay
         "old_text": None,
         "new_text": None,
     }
@@ -151,7 +151,6 @@ def parse_parameters(text):
     if m_text:
         params["old_text"] = m_text.group(1).strip()
         params["new_text"] = m_text.group(2).strip()
-
     # layer_mode: overlay | tile (default)
     if re.search(r'\b(overlay|full.?screen|on top|screen|vfx|pip|picture.in.picture|corner|inset|small|miniature|blend|ghost|mix|transparent|opacity|see.?through)\b', text, re.I):
         params["layer_mode"] = "overlay"
