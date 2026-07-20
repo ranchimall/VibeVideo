@@ -46,7 +46,9 @@ def _transcribe_video(video_path, task, language, model_size, outdir="whisper_ou
     audio_path = os.path.join(outdir, f"{video_name}_audio.wav")
     transcript_cache = os.path.join(outdir, f"{video_name}_{task}_{model_size}_transcript.json")
 
-    whi_main.extract_audio(video_path, audio_path, ffmpeg_path=FFMPEG_PATH)
+    if not os.path.exists(audio_path) or os.path.getmtime(video_path) > os.path.getmtime(audio_path):
+        whi_main.extract_audio(video_path, audio_path, ffmpeg_path=FFMPEG_PATH)
+        
     segments = whi_main.transcribe(audio_path, model_size, transcript_cache, task=task, language=language)
     return segments, outdir, video_name
 

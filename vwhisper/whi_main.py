@@ -44,10 +44,11 @@ def extract_audio(video_path: str, audio_path: str, ffmpeg_path: str = "ffmpeg")
 # ---------- Step 2: Transcribe with Whisper ----------
 def transcribe(audio_path: str, model_size: str, cache_path: str, task: str = "transcribe", language: str = None) -> list:
     # Cache transcript so repeated tests on the same video don't re-run Whisper
-    if os.path.exists(cache_path):
-        print(f"[2/5] Found cached transcript at {cache_path}, loading it...")
-        with open(cache_path, "r") as f:
-            return json.load(f)["segments"]
+    if os.path.exists(cache_path) and os.path.exists(audio_path):
+        if os.path.getmtime(cache_path) > os.path.getmtime(audio_path):
+            print(f"[2/5] Found cached transcript at {cache_path}, loading it...")
+            with open(cache_path, "r") as f:
+                return json.load(f)["segments"]
 
     print(f"[2/5] Transcribing with Whisper ({model_size}, task={task}) ... this can take a while on first run")
     import whisper
