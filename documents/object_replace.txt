@@ -1,0 +1,10 @@
+$$$|||
+object_replace_video
+replace the car in video with emoji.png
+remove dog in video.mp4 and replace with cat.jpg
+replace person with logo.png
+remove the car and put sticker.png
+object replace video
+replace the bird in bird.mp4 with face_a.png
+remove the bird and replace with image.png
+replace the moving object with a picture

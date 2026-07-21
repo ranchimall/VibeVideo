@@ -37,6 +37,7 @@ COLLECTION_MAP = {
         "take_screenshot",
         "screen_record",
         "screen_record_audio",
+        "object_replace_video",
     ],
     "audio_editing": [
         "audio_trim",
@@ -120,7 +121,7 @@ def _parse_txt_files():
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-def seed_collections(force: bool = False):
+def seed_collections(force: bool = True):
     """
     Populate ChromaDB collections from documents/*.txt files.
 

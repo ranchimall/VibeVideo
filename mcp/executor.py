@@ -10,15 +10,22 @@ from engines.youtube_engine import execute_youtube
 from engines.audacity_engine import execute_audacity
 from engines.insightface_engine import execute_insightface
 from engines.cv_text_engine import execute_cv
+from engines.cv_object_engine import execute_cv_object
 from engines.whisper_engine import execute_whisper
 
+def execute_cv_dispatcher(implementation, instruction):
+    if implementation == "object_replace_video":
+        import imageio_ffmpeg
+        ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+        return execute_cv_object(instruction, ffmpeg_path)
+    return execute_cv(implementation, instruction)
 
 ENGINE_DISPATCH = {
     "ffmpeg": execute_ffmpeg,
     "yt_dlp": execute_youtube,
     "audacity": execute_audacity,
     "insightface": execute_insightface,
-    "cv": execute_cv,
+    "cv": execute_cv_dispatcher,
     "whisper": execute_whisper,
 }
 

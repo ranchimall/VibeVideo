@@ -143,9 +143,16 @@ def parse_parameters(text):
         "layer_mode": "tile",     # tile | pip | blend | overlay
         "old_text": None,
         "new_text": None,
+        "target_object": None,
     }
 
-    # Text Replacement (e.g. "change X to Y" or "replace X with Y")
+    # Object Replacement (e.g. "replace the car in video with emoji.png")
+    m_obj = re.search(r'\b(?:remove|replace)\s+(?:the\s+)?([a-zA-Z0-9\s]+?)\s+(?:in\s+[^\s]+\s+)?(?:and\s+replace\s+)?(?:with|to)\s+([^\s]+)', text, re.I)
+    if m_obj:
+        params["target_object"] = m_obj.group(1).strip()
+        # Note: the replacement file (group 2) will be parsed by all_files below
+
+    # Text Replacement (e.g. "change X to Y" or "replace X with Y in video")
     # Matches: change theFLOblockchain to FLO Blockchain in video.mp4
     m_text = re.search(r'\b(?:change|replace)\s+[\'"]?(.+?)[\'"]?\s+(?:to|with)\s+[\'"]?(.+?)[\'"]?(?:\s+(?:in|on|for|from|as))', text, re.I)
     if m_text:

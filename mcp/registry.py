@@ -70,6 +70,13 @@ MCP_REGISTRY = {
         "errors": ["file_not_found", "ocr_failed", "inpainting_failed"]
     },
 
+    "object_replace_video": {
+        "action": "object_replace_video",
+        "input": ["input_files", "target_object"],
+        "output": ["output_file"],
+        "errors": ["file_not_found", "detection_failed", "tracking_failed"]
+    },
+
     "face_swap_video": {
         "action": "face_swap_video",
         "input": [

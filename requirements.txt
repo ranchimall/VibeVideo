@@ -11,3 +11,4 @@ easyocr
 Pillow
 openai-whisper
 soundfile
+ultralytics
