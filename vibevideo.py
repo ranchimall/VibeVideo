@@ -19,6 +19,26 @@ from multicommand.multi_helpers import count_time_ranges
 print("Python:", sys.executable)
 print("CWD:", os.getcwd())
 
+# Check if user has a GPU but is stuck on CPU-only PyTorch
+HAS_GPU = False
+try:
+    import torch
+    if not torch.cuda.is_available():
+        try:
+            result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
+            if result.returncode == 0:
+                print("\n⚠️  NVIDIA GPU detected but PyTorch is CPU-only!")
+                print("   Run this to enable GPU acceleration:")
+                print("   pip install --force-reinstall torch torchvision --index-url https://download.pytorch.org/whl/cu126")
+                print("   (Note: Only NVIDIA GPUs support CUDA acceleration on Windows)\n")
+        except FileNotFoundError:
+            pass
+    else:
+        HAS_GPU = True
+        print(f"GPU: {torch.cuda.get_device_name(0)} (CUDA {torch.version.cuda})")
+except ImportError:
+    pass
+
 # path to ffmpeg binary
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 MULTICOMMAND_MAX_DISTANCE = 0.9
@@ -504,9 +524,8 @@ if __name__ == "__main__":
         print(tool)
 
         try:
-            result = execute_tool_instruction(tool, instruction)
+            result = execute_tool_instruction(tool, instruction, HAS_GPU)
             outputs = result if isinstance(result, list) else [result]
             last_outputs = [o for o in outputs if o]
         except Exception as e:
             print(f"\nError running '{capability}': {e}")
-

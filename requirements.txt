@@ -12,3 +12,6 @@ Pillow
 openai-whisper
 soundfile
 ultralytics
+lap
+sam2
+tqdm

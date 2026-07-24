@@ -5,3 +5,9 @@ models/*.onnx
 models/*.faiss
 models/*.pkl
 models/chroma_db/
+*.pt
+sample_media/*
+!sample_media/.gitkeep
+weights/
+sam2_propainter_work/
+ProPainter/weights/

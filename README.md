@@ -12,7 +12,7 @@ An intelligent, natural language-driven command-line interface for video and aud
 ## Directory Structure
 
 - **`documents/`**: Contains text files that act as the canonical source-of-truth for all capabilities. These are parsed and stored in ChromaDB on first startup, then indexed by FAISS for fast in-memory semantic search.
-- **`engines/`**: Houses the backend integration scripts (`ffmpeg_engine.py`, `audacity_engine.py`, `insightface_engine.py`, `ytdl.py`) that actually execute commands on media files.
+- **`engines/`**: Houses the backend integration scripts (`ffmpeg_engine.py`, `audacity_engine.py`, `insightface_engine.py`, `ytdl.py`, `cv_object_engine.py`, `cv_object_engine_v2.py`) that actually execute commands on media files.
 - **`mcp/`**: Contains the Model Context Protocol (MCP) logic (`chroma_store.py`, `capability_resolver.py`, `executor.py`, `registry.py`) that seeds ChromaDB, builds the FAISS index, extracts parameters from commands, and dispatches instructions to engines.
 - **`models/`**: Stores downloaded machine learning weights (e.g., InsightFace ONNX model) and the ChromaDB persistent vector database (`chroma_db/` — gitignored).
 - **`sample_media/`**: The designated working directory to place your videos, audio, and images for editing.
@@ -59,6 +59,22 @@ pip install -r requirements.txt
 
 ### 4. Optional Third-Party Software
 - **Audacity**: Required **ONLY** if you plan to use the `normalize audio` command. You must have the Audacity desktop application installed and actively running on your PC with the `mod-script-pipe` module enabled in its settings (Edit -> Preferences -> Modules).
+- **SAM2 + ProPainter** (optional, for higher-quality `object_replace_video` on a GPU): The editor checks for a CUDA GPU on startup and automatically picks the best available pipeline for object replacement:
+  - **No GPU / GPU not set up** → uses the built-in YOLO + ByteTrack pipeline (`cv_object_engine.py`). Works out of the box from `requirements.txt`, CPU-usable.
+  - **CUDA GPU detected** → uses the SAM2 + ProPainter pipeline (`cv_object_engine_v2.py`) for cleaner, flicker-free tracking and inpainting across the whole clip. (Note: If your GPU has < 6GB VRAM, the engine will automatically compress memory and fallback to processing on the CPU to prevent crashing). This requires extra one-time setup:
+    ```bash
+    pip install sam2
+    # Download a SAM2 checkpoint (e.g. sam2.1_hiera_large.pt) into weights/
+    # https://github.com/facebookresearch/sam2#model-description
+
+    git clone https://github.com/sczhou/ProPainter
+    cd ProPainter
+    pip install -r requirements.txt
+    # ProPainter.pth, recurrent_flow_completion.pth, and raft-things.pth
+    # auto-download on first run, or grab them manually from
+    # https://github.com/sczhou/ProPainter/releases
+    ```
+    Then set `SAM2_CHECKPOINT`, `SAM2_MODEL_CONFIG`, and `PROPAINTER_DIR` at the top of `engines/cv_object_engine_v2.py` to match where you installed things. If a GPU is detected but this setup isn't finished, `object_replace_video` will error out rather than silently falling back — finish the setup above before using it on a GPU machine.
 
 
 
@@ -71,7 +87,10 @@ pip install -r requirements.txt
    ```bash
    python vibevideo.py
    ```
-3. Upon startup, the editor will scan the directory and list all available media files, assigning them numbered shortcuts:
+3. Upon startup, the editor will scan the directory and list all available media files, assigning them numbered shortcuts. It also checks whether a CUDA GPU is available — this determines which pipeline `object_replace_video` uses (see Optional Third-Party Software above) and is printed to the console, e.g.:
+   ```text
+   GPU: NVIDIA GeForce RTX 4080 (CUDA 12.6)
+   ```
    ```text
    Available files:
      [1] holiday_clip.mp4
@@ -100,6 +119,7 @@ The table below summarizes the natural language commands supported. On first sta
 | **`video_merge`** | `merge f1 and f2 using slideleft transition as final.mp4`, `combine file1.mp4 and file2.mp4` | `input_files`, `output_file`, `transition` | Merged video. If 2 videos and transition defined, applies xfade. (default: `merged.mp4`) | Core FFmpeg |
 | **`video_layer`** | `overlay bird.mp4 and hud.png top right and vfx.mp4 bottom left` | `input_files`, `output_file`, `layer_positions` | Composited video layers (default: `layered_output.mp4`) | Core FFmpeg |
 | **`face_swap_video`** | `swap face in video.mp4 with face.jpg`, `replace face in f1 with f2` | `input_files`, `output_file` | Video with the face swapped seamlessly (default: `<input>_faceswap.<ext>`) | InsightFace, ONNXRuntime, OpenCV |
+| **`object_replace_video`** | `replace the car in video.mp4 with logo.png`, `remove dog in video.mp4 and replace with cat.jpg` | `input_files`, `output_file`, `target_object` | Video with the detected object replaced/removed, tracked across the whole clip (default: `replaced_output.mp4`) | YOLO11-seg + ByteTrack (CPU-usable); or SAM2 + ProPainter if a CUDA GPU is detected (higher quality, needs extra setup — see Optional Third-Party Software) |
 | **`audio_trim`** | `trim audio f2 from 10 to 30 seconds`, `cut f2 from 00:00:10 to 00:00:30` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed audio file (default: `<input>_trimmed.<ext>`) | Core FFmpeg |
 | **`audio_volume`** | `double volume of f2.mp3`, `make audio f2.wav quieter by volume 0.5` | `input_files`, `output_file`, `volume_level` | Adjusted volume audio/video file (default: `<input>_volume.<ext>`) | Core FFmpeg |
 | **`audio_fade`** | `apply fade out of 3 seconds to f2.mp3`, `fade in f2.wav starting from 0 for 5 seconds` | `input_files`, `output_file`, `fade_type`, `fade_duration`, `start_time` | Audio file with fade-in/fade-out applied (default: `<input>_fade_<in/out>.<ext>`) | Core FFmpeg |
@@ -190,4 +210,3 @@ overlay bird.mp4 and hud.png top right and fire.mp4 bottom left and glitch.mp4
 4. `glitch.mp4` $\rightarrow$ No position specified! Detected as an MP4 (Screen blend). Scaled to **Full Screen 1080p** and layered over everything.
 
 ---
-
