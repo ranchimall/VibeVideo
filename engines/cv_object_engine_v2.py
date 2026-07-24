@@ -171,6 +171,13 @@ def _run_sam2_tracking_on_device(frames_dir, seed_frame_idx, seed_box_xyxy, devi
                     mask = (mask_logits[0] > 0.0).cpu().numpy().squeeze().astype(np.uint8) * 255
                     masks_by_frame[frame_idx] = mask
 
+    import gc
+    del predictor
+    del inference_state
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     return masks_by_frame
 
 
@@ -226,6 +233,13 @@ def export_masks(masks_by_frame, frame_paths, masks_dir):
         mask = masks_by_frame.get(i)
         if mask is None:
             mask = np.zeros((h, w), dtype=np.uint8)
+        else:
+            # Dilate the mask for ProPainter. A tight segmentation mask often leaves
+            # behind a 'halo' or shadows of the object. Expanding the mask by ~10px
+            # ensures ProPainter completely erases the object and its immediate edges.
+            kernel = np.ones((15, 15), np.uint8)
+            mask = cv2.dilate(mask, kernel, iterations=1)
+            
         out_path = os.path.join(masks_dir, os.path.basename(frame_path).replace(".jpg", ".png"))
         cv2.imwrite(out_path, mask)
 
@@ -245,6 +259,10 @@ def run_propainter(frames_dir, masks_dir, output_dir):
             "--video", frames_dir,
             "--mask", masks_dir,
             "--output", output_dir,
+            "--save_frames",
+            "--fp16",
+            "--subvideo_length", "20",
+            "--resize_ratio", "0.5",
         ]
         
         sys.path.insert(0, PROPAINTER_DIR)
@@ -297,7 +315,7 @@ def composite_replacement(inpainted_frames_dir, masks_by_frame, frame_paths,
             x, y, w, h = xs.min(), ys.min(), xs.max() - xs.min(), ys.max() - ys.min()
             frame = overlay_image(
                 frame, replacement_img, x, y, w, h,
-                obj_mask=mask, preserve_aspect=True, feather_px=5
+                preserve_aspect=True, feather_px=0
             )
 
         out_path = os.path.join(output_frames_dir, os.path.basename(orig_path))
@@ -309,13 +327,18 @@ def frames_to_video(frames_dir, audio_path, fps, output_file, ffmpeg_path="ffmpe
     if os.path.exists(audio_path):
         cmd = [ffmpeg_path, "-y", "-framerate", str(fps), "-i", pattern,
                "-i", audio_path, "-c:v", "libx264", "-preset", "fast",
+               "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",
                "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac",
                "-map", "0:v:0", "-map", "1:a:0?", output_file]
     else:
         cmd = [ffmpeg_path, "-y", "-framerate", str(fps), "-i", pattern,
                "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+               "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",
                "-pix_fmt", "yuv420p", output_file]
-    subprocess.run(cmd, capture_output=True)
+    
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"[FFmpeg Error] {result.stderr}")
 
 
 def execute_cv_object_v2(instruction, ffmpeg_path="ffmpeg", work_dir="sam2_propainter_work"):
@@ -389,11 +412,17 @@ def execute_cv_object_v2(instruction, ffmpeg_path="ffmpeg", work_dir="sam2_propa
 
         export_masks(masks_by_frame, frame_paths, masks_dir)
 
-    print("[SAM2+ProPainter] Running flow-guided inpainting (ProPainter)...")
-    run_propainter(frames_dir, masks_dir, inpainted_dir)
+    propainter_output = os.path.join(inpainted_dir, os.path.basename(frames_dir), "frames")
+    existing_inpainted = sorted(glob.glob(os.path.join(propainter_output, "*.png")))
+    
+    if len(existing_inpainted) == len(frame_paths):
+        print("[SAM2+ProPainter] Found existing inpainted frames — skipping ProPainter step.")
+    else:
+        print("[SAM2+ProPainter] Running flow-guided inpainting (ProPainter)...")
+        run_propainter(frames_dir, masks_dir, inpainted_dir)
 
     print("[SAM2+ProPainter] Compositing replacement image...")
-    composite_replacement(inpainted_dir, masks_by_frame, frame_paths,
+    composite_replacement(propainter_output, masks_by_frame, frame_paths,
                            replacement_img, composited_dir)
 
     print("[SAM2+ProPainter] Re-encoding video...")
