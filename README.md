@@ -1,3 +1,9 @@
+# This is AI Blockchain Contract project
+This project is part of projectai token system of AI Blockchain Contract series of RanchiMall, hence owned by AIBC. A blockchain contract is a governance structure on the blockchain which enables human led supervision over blockchain projects, as opposed to Corporate incorporation in traditional businesses and purely automated Smartcontracts in DAOs (Distributed Autonomous Organisation). Funding for Blockchain Contract comes directly on blockchain.
+
+## AIBC (Artificial Intelligence Blockchain Contract):
+[AIBC Website](https://ranchimall.github.io/aibc)
+
 # VibeVideo
 
 An intelligent, natural language-driven command-line interface for video and audio editing. 
@@ -144,9 +150,9 @@ The editor extracts details from your commands using a regular expression parser
 
 ---
 
-# VibeVideo — Visual Chessboard Editor (`app66.py`)
+# VibeVideo — Visual Chessboard Editor (`vibevideo_ui.py`)
 
-`app66.py` is a **web-based visual video editor** built on [Gradio](https://www.gradio.app/) that runs the `vibevideo.py` NLP engine behind a point-and-click interface. It lets you arrange clips on a visual "chessboard" grid (rows = tracks), trim/move/copy/remove them non-destructively, composite picture-in-picture overlays, preview any combination instantly, export at 1080p — and drive everything with free-text natural language commands.
+`vibevideo_ui.py` is a **web-based visual video editor** built on [Gradio](https://www.gradio.app/) that runs the `vibevideo.py` NLP engine behind a point-and-click interface. It lets you arrange clips on a visual "chessboard" grid (rows = tracks), trim/move/copy/remove them non-destructively, composite picture-in-picture overlays, preview any combination instantly, export at 1080p — and drive everything with free-text natural language commands.
 
 ## ✨ Feature Highlights
 
@@ -201,11 +207,11 @@ pip install gradio pandas
 ```
 
 > [!NOTE]
-> `gradio` and `pandas` are required specifically by `app66.py` and are not covered by the base `requirements.txt`. All other packages (`sentence-transformers`, `faiss-cpu`, `imageio-ffmpeg`, etc.) are shared with the CLI engine.
+> `gradio` and `pandas` are required specifically by `vibevideo_ui.py` and are not covered by the base `requirements.txt`. All other packages (`sentence-transformers`, `faiss-cpu`, `imageio-ffmpeg`, etc.) are shared with the CLI engine.
 
 ### 4. Run the editor
 ```bash
-python app66.py
+python vibevideo_ui.py
 ```
 
 On startup you will see:
@@ -307,7 +313,7 @@ In Tab 1's **AI Command panel**, the chessboard itself feeds the command: choose
 | :--- | :--- |
 | `ffmpeg` / `ffprobe` not found | Install a **full** FFmpeg build (both binaries ship together) and ensure it's on `PATH`; restart your terminal. `imageio-ffmpeg` alone is not enough for this app because `ffprobe` is used for duration detection. |
 | Preview says *"Media is loading, please wait…"* | The video's proxy is still being generated. Large files can take a while on first use; the app retries automatically (up to 10 minutes per file). Subsequent runs are instant (proxies are cached). |
-| Port 7860 already in use | Another Gradio app is running. Stop it, or edit the final line of `app66.py`: `demo.queue().launch(share=True, server_port=7861, css=CUSTOM_CSS)`. |
+| Port 7860 already in use | Another Gradio app is running. Stop it, or edit the final line of `vibevideo_ui.py`: `demo.queue().launch(share=True, server_port=7861, css=CUSTOM_CSS)`. |
 | Public link didn't open | `share=True` requires internet access and occasionally fails behind strict firewalls/VPNs — use the local `http://127.0.0.1:7860` URL instead. |
 | AI commands fail on first run | The sentence-transformer model downloads on first use (~100 MB). Wait for the download, then retry. Audacity must be running with `mod-script-pipe` enabled for `normalize audio` commands. |
 | Old previews look wrong after editing render settings | Delete `%TEMP%\vibevideo_render_cache\` — cached renders are version-keyed, but clearing forces a clean rebuild. |
@@ -317,7 +323,7 @@ In Tab 1's **AI Command panel**, the chessboard itself feeds the command: choose
 - Editing is **non-destructive** — source files in `sample_media/` are never modified; exports always create new files.
 - The grid grows automatically beyond its default 6×8 size as you add more clips.
 - Image clips default to **3 seconds** each (adjustable via *Default image duration* at upload time); subtitle clips to 5 seconds.
-- `app66.py` shares its AI/NLP core with `vibevideo.py`, so every CLI capability in the [Commands & Capabilities Reference](#commands--capabilities-reference) above works in the AI Assistant too.
+- `vibevideo_ui.py` shares its AI/NLP core with `vibevideo.py`, so every CLI capability in the [Commands & Capabilities Reference](#commands--capabilities-reference) above works in the AI Assistant too.
 
 ---
 
