@@ -1,9 +1,3 @@
-# This is AI Blockchain Contract project
-This project is part of projectai token system of AI Blockchain Contract series of RanchiMall, hence owned by AIBC. A blockchain contract is a governance structure on the blockchain which enables human led supervision over blockchain projects, as opposed to Corporate incorporation in traditional businesses and purely automated Smartcontracts in DAOs (Distributed Autonomous Organisation). Funding for Blockchain Contract comes directly on blockchain.
-
-## AIBC (Artificial Intelligence Blockchain Contract):
-[AIBC Website](https://ranchimall.github.io/aibc)
-
 # VibeVideo
 
 An intelligent, natural language-driven command-line interface for video and audio editing. 
@@ -11,10 +5,10 @@ An intelligent, natural language-driven command-line interface for video and aud
 
 ## Directory Structure
 
-- **`documents/`**: Contains text files that act as the canonical source-of-truth for all capabilities. These are parsed and stored in ChromaDB on first startup, then indexed by FAISS for fast in-memory semantic search.
-- **`engines/`**: Houses the backend integration scripts (`ffmpeg_engine.py`, `audacity_engine.py`, `insightface_engine.py`, `ytdl.py`, `cv_object_engine.py`, `cv_object_engine_v2.py`) that actually execute commands on media files.
-- **`mcp/`**: Contains the Model Context Protocol (MCP) logic (`chroma_store.py`, `capability_resolver.py`, `executor.py`, `registry.py`) that seeds ChromaDB, builds the FAISS index, extracts parameters from commands, and dispatches instructions to engines.
-- **`models/`**: Stores downloaded machine learning weights (e.g., InsightFace ONNX model) and the ChromaDB persistent vector database (`chroma_db/` — gitignored).
+- **`documents/`**: Contains text files describing tool capabilities, which are chunked and embedded by FAISS to understand natural language intent.
+- **`engines/`**: Houses the backend integration scripts (`ffmpeg_engine.py`, `audacity_engine.py`, `insightface_engine.py`, `ytdl.py`) that actually execute commands on media files.
+- **`mcp/`**: Contains the Model Context Protocol (MCP) logic (`capability_resolver.py`, `executor.py`, `registry.py`) that extracts parameters, queries the FAISS index, and dispatches instructions to engines.
+- **`models/`**: Stores downloaded machine learning weights (e.g., InsightFace) and the serialized FAISS vector index.
 - **`sample_media/`**: The designated working directory to place your videos, audio, and images for editing.
 - **`tests/`**: Contains automated scripts to verify the CLI's capabilities.
 
@@ -59,22 +53,6 @@ pip install -r requirements.txt
 
 ### 4. Optional Third-Party Software
 - **Audacity**: Required **ONLY** if you plan to use the `normalize audio` command. You must have the Audacity desktop application installed and actively running on your PC with the `mod-script-pipe` module enabled in its settings (Edit -> Preferences -> Modules).
-- **SAM2 + ProPainter** (optional, for higher-quality `object_replace_video` on a GPU): The editor checks for a CUDA GPU on startup and automatically picks the best available pipeline for object replacement:
-  - **No GPU / GPU not set up** → uses the built-in YOLO + ByteTrack pipeline (`cv_object_engine.py`). Works out of the box from `requirements.txt`, CPU-usable.
-  - **CUDA GPU detected** → uses the SAM2 + ProPainter pipeline (`cv_object_engine_v2.py`) for cleaner, flicker-free tracking and inpainting across the whole clip. (Note: If your GPU has < 6GB VRAM, the engine will automatically compress memory and fallback to processing on the CPU to prevent crashing). This requires extra one-time setup:
-    ```bash
-    pip install sam2
-    # Download a SAM2 checkpoint (e.g. sam2.1_hiera_large.pt) into weights/
-    # https://github.com/facebookresearch/sam2#model-description
-
-    git clone https://github.com/sczhou/ProPainter
-    cd ProPainter
-    pip install -r requirements.txt
-    # ProPainter.pth, recurrent_flow_completion.pth, and raft-things.pth
-    # auto-download on first run, or grab them manually from
-    # https://github.com/sczhou/ProPainter/releases
-    ```
-    Then set `SAM2_CHECKPOINT`, `SAM2_MODEL_CONFIG`, and `PROPAINTER_DIR` at the top of `engines/cv_object_engine_v2.py` to match where you installed things. If a GPU is detected but this setup isn't finished, `object_replace_video` will error out rather than silently falling back — finish the setup above before using it on a GPU machine.
 
 
 
@@ -87,10 +65,7 @@ pip install -r requirements.txt
    ```bash
    python vibevideo.py
    ```
-3. Upon startup, the editor will scan the directory and list all available media files, assigning them numbered shortcuts. It also checks whether a CUDA GPU is available — this determines which pipeline `object_replace_video` uses (see Optional Third-Party Software above) and is printed to the console, e.g.:
-   ```text
-   GPU: NVIDIA GeForce RTX 4080 (CUDA 12.6)
-   ```
+3. Upon startup, the editor will scan the directory and list all available media files, assigning them numbered shortcuts:
    ```text
    Available files:
      [1] holiday_clip.mp4
@@ -107,7 +82,7 @@ pip install -r requirements.txt
 
 ## Commands & Capabilities Reference
 
-The table below summarizes the natural language commands supported. On first startup, all capabilities are seeded from `documents/*.txt` into a **ChromaDB** persistent vector store (organized into 4 collections: `video_editing`, `audio_editing`, `ai_tools`, `web_tools`). **FAISS** then indexes these for fast in-memory semantic search on every command.
+The table below summarizes the natural language commands supported by the FAISS index, the parameters they parse, and the tools they trigger:
 
 | Intent (FAISS Category) | Sample Prompts / Commands | Parsed Parameters | Output File / Result | Dependencies |
 | :--- | :--- | :--- | :--- | :--- |
@@ -117,9 +92,7 @@ The table below summarizes the natural language commands supported. On first sta
 | **`video_clip`** | `clip f1 from 00:05 to 00:15 into cut.mp4`, `trim file2 for 10 seconds` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed video clip (default: `<input>_clipped.<ext>`) | Core FFmpeg |
 | **`resize_video`** | `resize video to 1920x1080 as large.mp4`, `scale video to 640x480` | `input_files`, `output_file`, `width`, `height` | Video resized to new dimensions (default: `<input>_resized.<ext>`) | Core FFmpeg |
 | **`video_merge`** | `merge f1 and f2 using slideleft transition as final.mp4`, `combine file1.mp4 and file2.mp4` | `input_files`, `output_file`, `transition` | Merged video. If 2 videos and transition defined, applies xfade. (default: `merged.mp4`) | Core FFmpeg |
-| **`video_layer`** | `overlay bird.mp4 and hud.png top right and vfx.mp4 bottom left` | `input_files`, `output_file`, `layer_positions` | Composited video layers (default: `layered_output.mp4`) | Core FFmpeg |
 | **`face_swap_video`** | `swap face in video.mp4 with face.jpg`, `replace face in f1 with f2` | `input_files`, `output_file` | Video with the face swapped seamlessly (default: `<input>_faceswap.<ext>`) | InsightFace, ONNXRuntime, OpenCV |
-| **`object_replace_video`** | `replace the car in video.mp4 with logo.png`, `remove dog in video.mp4 and replace with cat.jpg` | `input_files`, `output_file`, `target_object` | Video with the detected object replaced/removed, tracked across the whole clip (default: `replaced_output.mp4`) | YOLO11-seg + ByteTrack (CPU-usable); or SAM2 + ProPainter if a CUDA GPU is detected (higher quality, needs extra setup — see Optional Third-Party Software) |
 | **`audio_trim`** | `trim audio f2 from 10 to 30 seconds`, `cut f2 from 00:00:10 to 00:00:30` | `input_files`, `output_file`, `start_time`, `end_time`, `duration` | Trimmed audio file (default: `<input>_trimmed.<ext>`) | Core FFmpeg |
 | **`audio_volume`** | `double volume of f2.mp3`, `make audio f2.wav quieter by volume 0.5` | `input_files`, `output_file`, `volume_level` | Adjusted volume audio/video file (default: `<input>_volume.<ext>`) | Core FFmpeg |
 | **`audio_fade`** | `apply fade out of 3 seconds to f2.mp3`, `fade in f2.wav starting from 0 for 5 seconds` | `input_files`, `output_file`, `fade_type`, `fade_duration`, `start_time` | Audio file with fade-in/fade-out applied (default: `<input>_fade_<in/out>.<ext>`) | Core FFmpeg |
@@ -131,11 +104,6 @@ The table below summarizes the natural language commands supported. On first sta
 | **`audio_visual`** | `generate waveform video for f2.mp3`, `generate spectrogram image of f2` | `input_files`, `output_file`, `visual_type` | Waveform video (`.mp4`) or Spectrogram image (`.png`) | Core FFmpeg |
 | **`audio_normalize`**| `normalize audio f2.mp3`, `normalize loudness of f2` | `input_files`, `output_file` | Audio file with normalized volume (default: `<input>_normalized.<ext>`) | Audacity (App must be running) |
 | **`download_youtube`**| `download a youtube video`, `download youtube link` | `url`, `quality`, `start_time`, `end_time` | Downloaded YouTube video clip (default: `<video_title>.mp4`) | yt-dlp |
-| **`video_replace_text`**| `change "OldText" to "NewText" in video.mp4` | `input_files`, `output_file`, `old_text`, `new_text` | Video with replaced on-screen text (default: `replaced_output.mp4`) | EasyOCR, OpenCV |
-| **`generate_subtitles`**| `generate subtitles for this video`, `transcribe this video` | `input_files`, `output_file`, `language` | Standalone .srt subtitle file (default: `<input>_transcribe.srt`) | Whisper |
-| **`burn_subtitles`**| `burn subtitles onto this video`, `hardcode the srt onto video.mp4` | `input_files` (requires video & .srt), `output_file` | Video with hardcoded subtitles (default: `<input>_captioned.mp4`) | Whisper, Core FFmpeg |
-| **`clip_by_keyword`**| `find every time someone says "hello" and clip it` | `input_files`, `output_file`, `search_query` | Merged video clips containing the keyword (default: `<input>_clip.mp4`) | Whisper |
-| **`clip_by_semantic`**| `find the part where he talks about pricing and clip it` | `input_files`, `output_file`, `search_query` | The video segment matching the semantic query (default: `<input>_clip.mp4`) | Whisper, FAISS |
 
 ---
 
@@ -173,40 +141,183 @@ The editor extracts details from your commands using a regular expression parser
 * **Audio Visualizer Type**:
   * Keyword `spectrogram` $\rightarrow$ renders static spectrogram image
   * Keyword `waveform` or default $\rightarrow$ renders animated waveform video
-* **Layer Mode**: Extracted using the keyword `overlay`. Default is `tile` (quadrant layout).
-  * **Universal Overlay:** Use keyword `overlay` to stack multiple files. The engine intelligently auto-detects transparency (Alpha for PNG vs Screen for MP4 VFX).
-    * **Base Video:** The *first* file in the command acts as the **Base** (background).
-    * **Overlays:** Every file listed after the base acts as a **Layer** placed on top.
-* **Per-File Layer Positions**: Extracted using keywords `top left`, `top right`, `bottom left`, `bottom right`, `full`. 
-  * You can assign a specific position to *each individual layer* by writing the position immediately after the filename.
-  * If you specify a corner (e.g. `top right`), the engine automatically scales that specific layer down to a Picture-in-Picture (PiP) size and pads it into the corner.
-  * If you don't specify a corner, the layer is scaled to full-screen (1920x1080).
-  * *Example:* `overlay base.mp4 and hud.png top right and vfx.mp4 bottom left`
 
 ---
 
-## Advanced: Universal Overlay Engine
-The `overlay` command acts as a universal, intelligent compositor that allows you to build complex multi-layered VFX scenes in a single sentence.
+# VibeVideo — Visual Chessboard Editor (`app66.py`)
 
-### The Base Video vs Layers
-The **very first file** you specify is always the **Base** (the background). All subsequent files are processed as layers stacked on top.
+`app66.py` is a **web-based visual video editor** built on [Gradio](https://www.gradio.app/) that runs the `vibevideo.py` NLP engine behind a point-and-click interface. It lets you arrange clips on a visual "chessboard" grid (rows = tracks), trim/move/copy/remove them non-destructively, composite picture-in-picture overlays, preview any combination instantly, export at 1080p — and drive everything with free-text natural language commands.
 
-### Smart Alpha vs Screen Detection
-You don't need to specify whether a file has a black background or a transparent background. 
-* If a layer is an `.mp4`, the engine automatically converts it to `gbrp` color space and applies a **Screen Blend** (perfectly erasing the black background).
-* If a layer is a `.png` or `.mov`, it automatically applies standard **Alpha Transparency**.
+## ✨ Feature Highlights
 
-### Layer Positioning (PiP vs Full-Screen)
-By default, all layers are scaled to full-screen 1080p. However, you can convert any layer into a Picture-in-Picture (PiP) by specifying a corner immediately after the filename.
+- 📼 **Media Library Grid** — upload videos, audio, images, and subtitles; browse them as clickable thumbnails with sorting (Date Created / Name / File Type).
+- ♟️ **Working Grid (Chessboard)** — every clip lives as a tile on a grid. Each **row is an independent track**; each **column is the play order** within that row. Rows play their clips back-to-back, independently of other rows.
+- 🎬 **One Shared Preview Box** — clip, row, full-grid, or custom-selection previews all render into a single player, and **exports replicate exactly what you previewed**.
+- ✂️ **Non-destructive editing** — every edit (Add / Trim / Move / Copy / Remove) is an entry in an append-only *action log*. Nothing touches your source files, and **Undo** simply drops the last action.
+- 🖼️ **Overlay compositing** — per-row or per-clip Picture-in-Picture (choose corner + size %), full-canvas **alpha overlays** that preserve real PNG transparency, layer priority (z-index) to choose the base layer, and per-row time shifts (±seconds).
+- 🤖 **AI Command Assistant** — type commands in plain English (`"trim f1 from 5 to 10 seconds"`, `"join R0C0 and R1C0"`). Supports `file1` / `f1` / `[1]` shortcuts, direct grid-cell references (`R2C3`), `{files}` / `{time}` placeholders, and live streaming command logs.
+- ⚡ **Background proxy pipeline** — videos are auto-transcoded to lightweight 854×480 proxies in a priority queue (what you click renders first), so previews stay fast even with large source files.
 
-**Example Command:**
-```text
-overlay bird.mp4 and hud.png top right and fire.mp4 bottom left and glitch.mp4
+## 📋 Prerequisites
+
+| Requirement | Details |
+| :--- | :--- |
+| **Python** | 3.10 or newer |
+| **FFmpeg + ffprobe** | Must both be installed and available on your system `PATH`. (The editor's own preview/proxy/export pipeline calls `ffmpeg` and `ffprobe` directly.) Download a full build from [ffmpeg.org](https://ffmpeg.org/download.html) or `winget install Gyan.FFmpeg`. Verify with `ffmpeg -version` and `ffprobe -version`. |
+| **Internet connection** | Needed once on launch — the app exposes a public `*.gradio.live` share link, and the AI engine downloads sentence-embedding models on first run. |
+
+## 🚀 Installation & Setup
+
+### 1. Clone and enter the project
+```bash
+git clone https://github.com/ranchimall/VibeVideo.git
+cd VibeVideo
 ```
-**How it processes:**
-1. `bird.mp4` $\rightarrow$ First file, so it acts as the **Base** video (background).
-2. `hud.png top right` $\rightarrow$ Detected as a PNG (Alpha). Position specified, so it is shrunk to 25% size and placed in the **Top Right** corner.
-3. `fire.mp4 bottom left` $\rightarrow$ Detected as an MP4 (Screen blend erases black). Position specified, so it is shrunk to 25% size and placed in the **Bottom Left** corner.
-4. `glitch.mp4` $\rightarrow$ No position specified! Detected as an MP4 (Screen blend). Scaled to **Full Screen 1080p** and layered over everything.
+
+### 2. Create and activate a virtual environment
+
+**Windows (PowerShell):**
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+**Windows (CMD):**
+```bat
+python -m venv venv
+venv\Scripts\activate.bat
+```
+
+**Linux / macOS:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Install dependencies
+```bash
+pip install -r requirements.txt
+pip install gradio pandas
+```
+
+> [!NOTE]
+> `gradio` and `pandas` are required specifically by `app66.py` and are not covered by the base `requirements.txt`. All other packages (`sentence-transformers`, `faiss-cpu`, `imageio-ffmpeg`, etc.) are shared with the CLI engine.
+
+### 4. Run the editor
+```bash
+python app66.py
+```
+
+On startup you will see:
+```text
+Running on local URL:  http://127.0.0.1:7860
+Running on public URL: https://xxxxx.gradio.live
+```
+
+Open either URL in your browser. The **local** URL works offline on your machine; the **public** `gradio.live` link lets you open the editor from anywhere (handy for sharing/remote access).
+
+> [!TIP]
+> First launch may take a minute: the AI engine loads its embedding model and scans `sample_media/`. Videos found in the library get their proxies generated in the background — click a tile and the app will show *"Media is loading, please wait…"* until its proxy is ready.
+
+## 🗂️ Files & Folders Created
+
+| Path | Purpose |
+| :--- | :--- |
+| `sample_media/` | Your media library. Anything placed here is auto-scanned into the app on startup, and all AI command outputs land here too. |
+| `sample_media/proxies/` | Auto-generated 854×480 H.264 preview proxies (one per video, reused across sessions). |
+| `%TEMP%\vibevideo_thumbnails\` | Cached JPEG thumbnails shown in the Library Grid. |
+| `%TEMP%\vibevideo_render_cache\` | Cached preview segment renders (keyed by a render-logic version, so stale files are never served). |
+| `%TEMP%\vibevideo_exports\` | Final exported files — grab your finished video here. |
+
+All cache/temp folders are safe to delete at any time; they rebuild automatically.
+
+## 🖥️ Using the Interface
+
+The app has two tabs.
+
+### Tab 1 — Visual Chessboard Editor
+
+```
+┌─────────────────────────┬──────────────────────────────┐
+│  AVAILABLE LIST         │  WORKING GRID + ACTIONS      │
+│  • Upload media         │  • The chessboard            │
+│  • Library thumbnail    │  • Add / Trim / Move /       │
+│    grid (click tiles)   │    Copy / Remove / Undo      │
+│  • AI Command panel     │  • Overlays, arrows, shifts  │
+├─────────────────────────┴──────────────────────────────┤
+│  PREVIEW BOX (one shared video player + status)        │
+│  Row Preview · Grid Preview · Custom Selection · Export│
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Step 1 — Add media to the Library (left column)
+1. Click **Add media** and pick one or more files (or just drop files into `sample_media/` before launching).
+2. Supported types: **video** (.mp4 .mkv .avi .mov .webm), **audio** (.mp3 .wav .aac .flac .m4a .ogg), **image** (.png .jpg .jpeg .gif .webp .bmp), **subtitle** (.srt .vtt .ass .sub).
+3. Tiles appear as thumbnails. **Click a tile** to select it — selecting automatically places it onto the Working Grid; **click again to deselect** and remove it. Use the sort dropdowns to reorder the view.
+
+#### Step 2 — Arrange clips on the Working Grid (right column)
+- **Rows are tracks, columns are order.** Row 0 plays its clips left-to-right, then Row 1 plays its own clips, etc. Rows do *not* share a timeline — each plays independently (great for building parallel layers to composite).
+- Pick a target **Row number** and **Column** (leave blank to auto-append), then use:
+  - **Add to Working Grid →** — place the selected library file.
+  - **Trim** — set new In/Out points (in seconds) for the target clip.
+  - **Move / Copy / Remove** — restructure the grid. Arrow buttons swap a clip with its neighbor; **Copy** duplicates a clip to another row.
+  - **Undo** — removes the last action (fully non-destructive).
+- **Click any clip tile** to make it the *Target clip instance*, **click a row label (R0, R1…)** to select that row, and **tap the small ＋/✓ badges** on tiles, row headers, or column headers to build a **Custom Selection** (the corner button selects/deselects everything).
+
+#### Step 3 — Composite with overlays (optional)
+For rows above the base layer you can set **PIP overlays**: choose a corner (top-right, top-left, bottom-left, bottom-right, center) and a width percentage, per **row** or per individual **clip**. Special modes:
+- **Full-canvas overlay** — alpha-composites the row/clip over whatever is beneath, preserving real transparency (e.g. a PNG logo's transparent background).
+- **Layer priority (z-index)** — among visible rows, the one with the lowest priority number becomes the full-canvas base layer; all others overlay on top.
+- **Row shift** — offset an entire row's start time by ± seconds.
+
+#### Step 4 — Preview and export
+Every preview scope writes into the **one shared Preview box**:
+- **Clip preview** — the selected clip alone (with its own selection bar).
+- **Row preview** — one whole track concatenated back-to-back.
+- **Grid preview** — the full composite exactly as layered (base + overlays).
+- **Custom Selection preview** — any mix of picked clips/rows/columns.
+
+Use the **selection bar** under the preview to mark points/spans with the syntax `10-15, 22.3, 40-45` (bands and single time-points in seconds, freely combined), then preview or export just those ranges.
+
+When you're happy, hit **Export** — renders at **1920×1080** full quality and saves to `%TEMP%\vibevideo_exports\` with the path shown in the status line.
+
+### Tab 2 — AI Command Assistant
+
+Type plain-English commands and press Run. The same engine powering the [CLI](#how-to-use) executes them against your library:
+
+```text
+clip f1 from 00:05 to 00:15 into highlight.mp4
+merge f1 and f2 using fade transition as intro.mp4
+extract audio from f2.mp3
+download youtube https://youtu.be/dQw4w9WgXcQ as mp3
+delete 10-20 from f1
+```
+
+Extras unique to the GUI:
+- **Grid cell references** — refer to clips by their chessboard position: `"Join R0C0 and R1C0"` resolves `R0C0`/`R1C0` to whatever currently sits in those cells.
+- **File shortcuts** — `file1`, `f1`, `[1]` map to library entries (see the *Valid Names in Commands* mapping table).
+- **Live logs** — command progress streams into the *AI Command Logs* box in real time, including which tier/matched capability was used.
+- Generated outputs are auto-ingested back into the Library and loaded into the shared Preview box.
+
+In Tab 1's **AI Command panel**, the chessboard itself feeds the command: choose a scope (**Clip** / **Selected Clips** / **Row** / **Entire Grid**) and the resolved files are injected automatically — use the `{files}` and `{time}` placeholders in your command text to control exactly where filenames and your selection-bar timings go, e.g. `trim {files} {time}` with selection `10-15`.
+
+## 🔧 Troubleshooting
+
+| Problem | Fix |
+| :--- | :--- |
+| `ffmpeg` / `ffprobe` not found | Install a **full** FFmpeg build (both binaries ship together) and ensure it's on `PATH`; restart your terminal. `imageio-ffmpeg` alone is not enough for this app because `ffprobe` is used for duration detection. |
+| Preview says *"Media is loading, please wait…"* | The video's proxy is still being generated. Large files can take a while on first use; the app retries automatically (up to 10 minutes per file). Subsequent runs are instant (proxies are cached). |
+| Port 7860 already in use | Another Gradio app is running. Stop it, or edit the final line of `app66.py`: `demo.queue().launch(share=True, server_port=7861, css=CUSTOM_CSS)`. |
+| Public link didn't open | `share=True` requires internet access and occasionally fails behind strict firewalls/VPNs — use the local `http://127.0.0.1:7860` URL instead. |
+| AI commands fail on first run | The sentence-transformer model downloads on first use (~100 MB). Wait for the download, then retry. Audacity must be running with `mod-script-pipe` enabled for `normalize audio` commands. |
+| Old previews look wrong after editing render settings | Delete `%TEMP%\vibevideo_render_cache\` — cached renders are version-keyed, but clearing forces a clean rebuild. |
+
+## 💡 Notes
+
+- Editing is **non-destructive** — source files in `sample_media/` are never modified; exports always create new files.
+- The grid grows automatically beyond its default 6×8 size as you add more clips.
+- Image clips default to **3 seconds** each (adjustable via *Default image duration* at upload time); subtitle clips to 5 seconds.
+- `app66.py` shares its AI/NLP core with `vibevideo.py`, so every CLI capability in the [Commands & Capabilities Reference](#commands--capabilities-reference) above works in the AI Assistant too.
 
 ---
+
