@@ -113,6 +113,149 @@ The table below summarizes the natural language commands supported by the FAISS 
 
 ---
 
+
+## How to Add New Capabilities to the CLI, MCP & Engine Pipeline
+
+**Purpose:** This guide provides a developer blueprint for adding new video, audio, transcription, or editing capabilities to VibeVideo. Follow the 5-layer pipeline to ensure FAISS matching, MCP schema compliance, and robust engine execution.
+
+## 1. The 5-Layer Capability Architecture
+
+Whenever a user enters a command, it flows through 5 interconnected layers. Adding a capability requires updating each layer in order:
+
+1. **Training / FAISS** — `documents/*.txt`
+   Adds semantic vector embeddings and associates natural-language phrasing with capability names.
+2. **Parsing** — `vibevideo.py`
+   Extracts parameters such as files, timestamps, and multipliers into a typed dictionary.
+3. **MCP Contract** — `mcp/registry.py`
+   Defines the capability's input/output schema and expected error codes.
+4. **Tool Resolver** — `mcp/capability_resolver.py`
+   Maps capability names to their target engines such as FFmpeg, Whisper, or Audacity.
+5. **Engine Logic** — `engines/*_engine.py`
+   Executes the native CLI/model operations and returns the generated outputs.
+
+---
+
+# 2. Step-by-Step Implementation Workflow
+
+Follow these 5 steps whenever introducing a new capability. The guide uses `split_video` as the example.
+
+### Step 1: Add Natural Language Training Data (FAISS)
+
+Open the relevant file in `documents/`, such as `documents/ffmpeg.txt`, and add a new section using `$$$|||`.
+
+The first line is the capability name, followed by natural-language examples:
+
+```text
+$$$|||
+split_video
+split video at 01:00
+split videoxyz.mp4 at 00:07
+split this video in two parts at 10 seconds
+divide video into two parts at 01:30
+cut video in two at 00:45
+```
+
+This allows FAISS to associate different user phrasings with the `split_video` capability.
+
+### Step 2: Register Schema in MCP Registry
+
+Open `mcp/registry.py` and register the capability inside `MCP_REGISTRY`.
+
+Specify the required inputs, outputs, and possible errors:
+
+```python
+MCP_REGISTRY = {
+    ...
+    "split_video": {
+        "action": "split_video",
+        "input": ["input_files", "start_time"],
+        "output": ["output_file"],
+        "errors": ["file_not_found", "invalid_timestamp", "split_failed"]
+    },
+}
+```
+
+### Step 3: Map Capability in Resolver
+
+Open `mcp/capability_resolver.py` and add the capability to `CAPABILITY_TOOL_MAP`, connecting it to the appropriate engine:
+
+```python
+CAPABILITY_TOOL_MAP = {
+    ...
+    "split_video": {
+        "tool": "ffmpeg",
+        "implementation": "split_video"
+    },
+}
+```
+
+### Step 4: Implement Logic in Target Engine
+
+In `engines/ffmpeg_engine.py`, inside `execute_ffmpeg`, implement the handler.
+
+The handler should:
+
+- Read the input files and parameters.
+- Validate the parameters.
+- Convert the timestamp to seconds.
+- Check the video duration.
+- Run FFmpeg.
+- Return the generated file paths.
+
+Example:
+
+```python
+elif implementation == "split_video":
+    if not input_files:
+        raise ValueError("No input file specified.")
+
+    input_file = input_files[0]
+    split_time = inp.get("start_time")
+    split_sec = _parse_time_to_seconds(split_time)
+
+    total_dur = get_video_duration(input_file, ffmpeg_path)
+
+    if total_dur is not None and split_sec >= total_dur:
+        raise ValueError("Split timestamp exceeds video duration.")
+
+    base, ext = os.path.splitext(input_file)
+    p1, p2 = f"{base}_part1{ext}", f"{base}_part2{ext}"
+
+    # Part 1: from 00:00 to split_sec
+    subprocess.run(
+        f'"{ffmpeg_path}" -y -i "{input_file}" '
+        f'-t {split_sec} -c:v libx264 -c:a aac "{p1}"',
+        shell=True
+    )
+
+    # Part 2: from split_sec to end
+    subprocess.run(
+        f'"{ffmpeg_path}" -y -ss {split_sec} -i "{input_file}" '
+        f'-c:v libx264 -c:a aac "{p2}"',
+        shell=True
+    )
+
+    return [p1, p2]
+```
+
+### Step 5: Verify Query Parsing in `vibevideo.py`
+
+Ensure `parse_parameters()` in `vibevideo.py` extracts the relevant keywords and timestamps correctly.
+
+For example:
+
+```text
+split video at 00:07
+```
+
+should produce:
+
+```python
+params["start_time"] = "00:07"
+```
+
+The CLI automatically handles returned lists and displays all generated output files.
+
 ## Natural Language Parameter Syntax
 
 The editor extracts details from your commands using a regular expression parser. Below are the patterns you can use to specify settings:
